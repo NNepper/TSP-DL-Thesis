@@ -26,7 +26,7 @@ class Decoder(nn.Module):
 
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers=1):
         super().__init__()
-        self.rnn = nn.GRU(hidden_dim, hidden_dim, num_layers=num_layers)
+        self.rnn = nn.GRU(input_dim, hidden_dim, num_layers=num_layers)
         self.out = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, input, hidden, mask):  # input > [1, input_dim=2]
@@ -66,34 +66,38 @@ class Seq2Seq(nn.Module):
         state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
 
         # Encoding the Graph
-        _, hidden = self.encoder(torch.squeeze(state[:,:,:2], 0))
+        _, hidden = self.encoder(torch.squeeze(state[:, :, :2], 0))
 
         # Decoding the Tour
-        dec_in = torch.zeros((1, self.hidden_dim), device=self.device)
+        dec_in = torch.zeros((state.shape[0], self.input_dim), device=self.device)
         done = False
-        acc_loss = torch.zeros(self.output_dim, device=self.device)
+        acc_loss = torch.zeros((state.shape[0],), device=self.device)
+
         while not done:
-            mask = torch.Tensor(env.generate_mask(), device=self.device)
+            mask = state[:, :, 3]
             output, _ = self.decoder(dec_in, hidden, mask=mask)
 
             # Find probabilities
             prob = F.softmax(output, dim=2)
-            dec_in = torch.unsqueeze(prob.argmax(1), -1).float()
+            dec_idx = prob.argmax(2)
 
             # Compute loss
-            _, loss, done, _ = env.step(np.array([dec_in]))
-            acc_loss += torch.tensor(loss, dtype=torch.float, device=self.device)
+            _, loss, done, _ = env.step(dec_idx)
 
             # Store result
             state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
-        return loss
+            acc_loss += torch.tensor(loss, dtype=torch.float, device=self.device)
+
+            # Prepare input for next timestep
+            dec_in = torch.squeeze(torch.squeeze(state[:, dec_idx, :2], 1), 1)  # TODO: Modify the squeezing
+        return acc_loss
 
 
 class BasicAgent:
     def __init__(self,
                  input_dim=2,
                  hidden_dim: int = 5,
-                 output_dim:int = 10,
+                 output_dim: int = 10,
                  enc_layer_size: int = 2,
                  dec_layer_size: int = 2,
                  lr: float = 1e-4,
