@@ -1,4 +1,4 @@
-from agents import BasicAgent
+import numpy as np
 
 from gym_vrp.envs import TSPEnv
 
@@ -10,8 +10,10 @@ env = TSPEnv(
     seed=69
 )
 
-# Agent
-agent = BasicAgent()
 
-# Training
-agent.train(env)
+if __name__ == '__main__':
+    env.enable_video_capturing("videos/test1.mp4")
+    for i in range(10):
+        action = np.array([[i]])
+        state, reward, done, _ = env.step(action)
+        print(state[:,:,3])

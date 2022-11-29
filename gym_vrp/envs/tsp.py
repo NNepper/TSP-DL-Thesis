@@ -4,8 +4,8 @@ import numpy as np
 from gym import Env
 from gym.wrappers.monitoring.video_recorder import VideoRecorder
 
-from ..graph.vrp_network import VRPNetwork
 from .common import ObsType
+from ..graph.vrp_network import VRPNetwork
 
 
 class TSPEnv(Env):
@@ -83,7 +83,8 @@ class TSPEnv(Env):
         self.step_count += 1
 
         # visit each next node
-        self.visited[np.arange(len(actions)), actions.T] = 1
+        for i in range(len(actions)):
+            self.visited[i, actions.T[i]] = 1
         traversed_edges = np.hstack([self.current_location, actions]).astype(int)
         self.sampler.visit_edges(traversed_edges)
 
@@ -93,6 +94,11 @@ class TSPEnv(Env):
             self.vid.capture_frame()
 
         done = self.is_done()
+
+        # Clean the video encoder when finished
+        if done:
+            self.vid.close()
+
         return (
             self.get_state(),
             -self.sampler.get_distances(traversed_edges),

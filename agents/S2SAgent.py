@@ -1,10 +1,10 @@
 # Libs
+import random
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-
-import random
 
 from gym_vrp.envs import TSPEnv
 
@@ -100,7 +100,7 @@ class Seq2Seq(nn.Module):
         state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
 
         # Encoding the Graph
-        _, hidden = self.encoder(torch.squeeze(state[:, :, :2], 0))
+        _, hidden = self.encoder.forward(torch.squeeze(state[:, :, :2], 0))
 
         # Decoding the Tour
         dec_in = torch.zeros((state.shape[0], self.input_dim), device=self.device)
@@ -109,7 +109,7 @@ class Seq2Seq(nn.Module):
 
         while not done:
             mask = state[:, :, 3]
-            output, _ = self.decoder(dec_in, hidden, mask=mask)
+            output, _ = self.decoder.forward(dec_in, hidden, mask=mask)
 
             # Find probabilities
             prob = F.softmax(output, dim=2)
@@ -174,7 +174,8 @@ class S2SAgent:
 
     def train(self, env: TSPEnv, epochs: int = 100):
         """
-        The train function trains the model for a given number of epochs.
+        The train function is responsible for training the model.
+        It takes an environment and number of epochs as arguments.
 
         :param self: Access the class instance inside of the method
         :param env:TSPEnv: Pass the environment to the model
