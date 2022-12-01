@@ -82,13 +82,15 @@ class TSPEnv(Env):
 
         self.step_count += 1
 
+        # convert Tensor to Numpy Array
+        actions = np.array(actions)
+
         # visit each next node
-        for i in range(len(actions)):
-            self.visited[i, actions.T[i]] = 1
+        self.visited[np.arange(len(actions)), actions.T] = 1
         traversed_edges = np.hstack([self.current_location, actions]).astype(int)
         self.sampler.visit_edges(traversed_edges)
 
-        self.current_location = np.array(actions)
+        self.current_location = actions
 
         if self.video_save_path is not None:
             self.vid.capture_frame()
@@ -96,7 +98,7 @@ class TSPEnv(Env):
         done = self.is_done()
 
         # Clean the video encoder when finished
-        if done:
+        if done and self.video_save_path is not None:
             self.vid.close()
 
         return (

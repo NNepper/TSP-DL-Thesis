@@ -2,15 +2,24 @@
 import random
 
 import torch
-import torch.distributions as distri
 import torch.nn as nn
 import torch.optim as optim
+from torch.distributions import Categorical
 
 from gym_vrp.envs import TSPEnv
 
 
 class MLP(nn.Module):
-    def __init__(self, input_dim: int, output_dim: int, layer_dim: int, layer_number: int):
+    def __init__(self, input_dim: int,
+                 output_dim: int,
+                 layer_dim: int,
+                 layer_number: int,
+                 gamma: float = 0.50,
+                 device=torch.device("cuda:0")):
+        super().__init__()
+        self.device = device
+        self.gamma = gamma
+
         # Dense-Layer
         self.dense = nn.Sequential(
             nn.Linear(input_dim, layer_dim),
@@ -19,43 +28,60 @@ class MLP(nn.Module):
             self.dense.append(nn.Linear(layer_dim, layer_dim))
             self.dense.append(nn.ReLU())
         self.dense.append(nn.Linear(layer_dim, output_dim))
+        self.dense.append(nn.ReLU())
 
-        # Probability output
-        self.softmax = nn.Softmax(output_dim, output_dim)
+        # Output softmax
+        self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, env: TSPEnv, input):
+    def forward(self, env: TSPEnv):
         state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
 
-        # Forming the input vector
-        input = torch.hstack([
-            env.depots[0],
-            torch.Tensor(input[0]),
-            torch.Tensor(input[1]),
-            torch.zeros(env.num_nodes),
-        ])
-
+        # Trajectory
         done = False
-        acc_loss = torch.zeros((state.shape[0],), device=self.device)
+        rewards = []
+        log_probs = []
         while not done:
+            # Mask already visited nodes
+            mask = torch.tensor(env.generate_mask(), dtype=torch.int, device=self.device)
+
+            # Forming the input vector
+            input = torch.hstack((
+                torch.tensor(env.depots),
+                state[:, :, 0].detach().clone(),
+                state[:, :, 1].detach().clone(),
+                mask
+            ))
+
             # Find probabilities
             output = self.dense(input)
-            probs = self.softmax(output)
-            selected = distri.Categorical(probs).sample()
+            probs = self.softmax(output.masked_fill(mask, float("-inf")))
+
+            # Sample the action
+            sampler = Categorical(probs)
+            selected = sampler.sample()
 
             # Compute loss
-            _, loss, done, _ = env.step(selected)
+            _, loss, done, _ = env.step(selected.unsqueeze(1))
 
             # Store result
             state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
-            # TODO: Loss
+            rewards.append(loss)
+            log_probs.append(torch.log(probs))
 
-            # Prepare input for next timestep
-            # TODO: Update and pass to next node
-        return acc_loss
+        # Compute Reward for the trajectory
+        discounts = [self.gamma ** i for i in range(len(rewards) + 1)]
+        R = sum([a * b for a, b in zip(discounts, rewards)])
+
+        policy_loss = []
+        for log_prob in log_probs:
+            policy_loss.append(-log_prob * R)
+        policy_loss = torch.cat(policy_loss).sum()
+
+        return policy_loss
 
 
 class BasicAgent:
-    def __init__(self, graph_size: int, layer_dim: int, layer_number: int, lr: float, seed: int = 69):
+    def __init__(self, graph_size: int, layer_number: int, lr: float, seed: int = 69):
         # Torch configuration
         random.seed(seed)
         torch.manual_seed(seed)
@@ -67,8 +93,10 @@ class BasicAgent:
         input_dim = (graph_size * 2) + graph_size + 1
         self.model = MLP(
             input_dim=input_dim,
-            layer_dim=layer_dim,
-            layer_number=layer_number
+            layer_dim=input_dim,  # TODO: change afterward
+            layer_number=layer_number,
+            output_dim=graph_size,
+            device=self.device
         ).to(self.device)
 
         # Optimization
