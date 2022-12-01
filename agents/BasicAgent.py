@@ -23,12 +23,12 @@ class MLP(nn.Module):
         # Dense-Layer
         self.dense = nn.Sequential(
             nn.Linear(input_dim, layer_dim),
-            nn.ReLU())
+            nn.LeakyReLU())
         for _ in range(layer_number - 2):
             self.dense.append(nn.Linear(layer_dim, layer_dim))
-            self.dense.append(nn.ReLU())
+            self.dense.append(nn.LeakyReLU())
         self.dense.append(nn.Linear(layer_dim, output_dim))
-        self.dense.append(nn.ReLU())
+        self.dense.append(nn.LeakyReLU())
 
         # Output softmax
         self.softmax = nn.Softmax(dim=1)
@@ -38,8 +38,9 @@ class MLP(nn.Module):
 
         # Trajectory
         done = False
-        rewards = []
+        rewards = torch.zeros(env.batch_size, env.num_nodes-1, requires_grad=True)
         log_probs = []
+        t = 0
         while not done:
             # Mask already visited nodes
             mask = torch.tensor(env.generate_mask(), dtype=torch.int, device=self.device)
@@ -53,30 +54,30 @@ class MLP(nn.Module):
             ))
 
             # Find probabilities
-            output = self.dense(input)
-            probs = self.softmax(output.masked_fill(mask, float("-inf")))
+            with torch.autograd.detect_anomaly(True):
+                output = self.dense(input)
+                probs = self.softmax(output.masked_fill(mask, float("-inf")))
 
             # Sample the action
             sampler = Categorical(probs)
-            selected = sampler.sample()
+            selected = sampler.sample().unsqueeze(1)
 
             # Compute loss
-            _, loss, done, _ = env.step(selected.unsqueeze(1))
+            _, loss, done, _ = env.step(selected)
 
             # Store result
             state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
-            rewards.append(loss)
-            log_probs.append(torch.log(probs))
+            rewards.append(torch.tensor(loss, dtype=torch.float, device=self.device))
+            log_probs.append(torch.gather(torch.log(probs), dim=1, index=selected).squeeze(1))
+            t += 1
 
         # Compute Reward for the trajectory
-        discounts = [self.gamma ** i for i in range(len(rewards) + 1)]
-        R = sum([a * b for a, b in zip(discounts, rewards)])
+        G = torch.zeros_like(rewards)
+        discounts = torch.tensor([self.gamma ** i for i in range(env.num_nodes - 1)]).unsqueeze(0).repeat(env.batch_size, 1)
+        for t in range(env.num_nodes - 1):
+            G[:, t] = torch.sum(rewards[:, t:] * discounts[:, : env.num_nodes - t - 1], axis=1)
 
-        policy_loss = []
-        for log_prob in log_probs:
-            policy_loss.append(-log_prob * R)
-        policy_loss = torch.cat(policy_loss).sum()
-
+        policy_loss = torch.sum(-log_probs * G)
         return policy_loss
 
 
