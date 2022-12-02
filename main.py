@@ -1,4 +1,4 @@
-from agents import BasicAgent
+from agents import AgentMLP
 from gym_vrp.envs import TSPEnv
 
 # Environment
@@ -10,7 +10,7 @@ env = TSPEnv(
 )
 
 # Agent
-agent = BasicAgent(
+agent = AgentMLP(
     graph_size=10,
     layer_number=4,
     lr=1e-3,

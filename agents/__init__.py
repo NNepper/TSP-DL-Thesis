@@ -1,2 +1,2 @@
-from agents.BasicAgent import BasicAgent
-from agents.S2SAgent import S2SAgent
+from agents.AgentMLP import AgentMLP
+from agents.AgentS2S import AgentS2S

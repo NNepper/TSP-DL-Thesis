@@ -127,7 +127,7 @@ class Seq2Seq(nn.Module):
         return acc_loss
 
 
-class S2SAgent:
+class AgentS2S:
     def __init__(self,
                  input_dim=2,
                  hidden_dim: int = 5,
