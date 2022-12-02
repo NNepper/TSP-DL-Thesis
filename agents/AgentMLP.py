@@ -76,6 +76,7 @@ class AgentMLP:
         while not done:
             # Mask already visited nodes
             mask = torch.tensor(env.generate_mask(), dtype=torch.int, device=self.device)
+            # TODO: Find a way to penalize tour bigger than the number of nodes in order to frame the learning process
 
             # Forming the input vector
             input = torch.hstack((
@@ -95,7 +96,7 @@ class AgentMLP:
             # Compute loss
             _, loss, done, _ = env.step(selected)
 
-            # Store result
+            # Store result TODO: Make code more efficient with batch operations through big Tensor while maintaining Gradient informations
             state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
             rewards.append(torch.tensor(loss, dtype=torch.float, device=self.device).squeeze())
             log_probs.append(torch.gather(torch.log(policy), dim=1, index=selected).squeeze())
