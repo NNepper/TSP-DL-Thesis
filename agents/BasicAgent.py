@@ -9,16 +9,24 @@ from torch.distributions import Categorical
 from gym_vrp.envs import TSPEnv
 
 
+class PolicyNetMLP(nn.Module):
+    def __init__(self
+                 inout_dim:
+
+
+
 class MLP(nn.Module):
     def __init__(self, input_dim: int,
                  output_dim: int,
                  layer_dim: int,
                  layer_number: int,
+                 env: TSPEnv,
                  gamma: float = 0.50,
                  device=torch.device("cuda:0")):
         super().__init__()
         self.device = device
         self.gamma = gamma
+        self.env = env
 
         # Dense-Layer
         self.dense = nn.Sequential(
@@ -64,7 +72,6 @@ class MLP(nn.Module):
 
             # Compute loss
             _, loss, done, _ = env.step(selected)
-
             # Store result
             state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
             rewards.append(torch.tensor(loss, dtype=torch.float, device=self.device))
@@ -80,8 +87,13 @@ class MLP(nn.Module):
         policy_loss = torch.sum(-log_probs * G)
         return policy_loss
 
+    def act(self):
+        # TODO: Prob -> sample actions -> return node and log_prob
+        return ...
 
-class BasicAgent:
+
+
+class AgentMLP:
     def __init__(self, graph_size: int, layer_number: int, lr: float, seed: int = 69):
         # Torch configuration
         random.seed(seed)
@@ -102,6 +114,8 @@ class BasicAgent:
 
         # Optimization
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+
+    def reinforce(self):
 
     def train(self, env: TSPEnv, epochs: int = 100):
         """
