@@ -28,9 +28,10 @@ class PolicyNetMLP(nn.Module):
         # Output softmax
         self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, input):
+    def forward(self, input, mask):
         output = self.dense(input)
-        probs = self.softmax(output)
+        output_masked = output.masked_fill(mask.bool(), float('-1e2'))
+        probs = self.softmax(output_masked)
         return probs
 
 
@@ -75,19 +76,18 @@ class AgentMLP:
         t = 0
         while not done:
             # Mask already visited nodes
-            mask = torch.tensor(env.generate_mask(), dtype=torch.int, device=self.device)
-            # TODO: Find a way to penalize tour bigger than the number of nodes in order to frame the learning process
+            mask = torch.tensor(env.generate_mask(), dtype=torch.float, device=self.device)
 
             # Forming the input vector
             input = torch.hstack((
                 torch.tensor(env.depots),
-                state[:, :, 0].detach().clone(),
-                state[:, :, 1].detach().clone(),
+                state[:, :, 0],
+                state[:, :, 1],
                 mask
             ))
 
             # Find probabilities
-            policy = self.model(input)
+            policy = self.model(input, mask)
 
             # Sample the action
             sampler = Categorical(policy)
@@ -143,4 +143,4 @@ class AgentMLP:
             self.optimizer.step()
 
             # report
-            print(f"epoch {i}: loss={policy_loss}, tour={len(tour)}")
+            print(f"epoch {i}: loss={policy_loss}")
