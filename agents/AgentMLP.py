@@ -9,6 +9,7 @@ from torch.distributions import Categorical
 from collections import deque
 
 from gym_vrp.envs import TSPEnv
+from common import discounted_rewards
 
 
 class PolicyNetMLP(nn.Module):
@@ -70,8 +71,8 @@ class AgentMLP:
 
         # Trajectory
         done = False
-        rewards = []
-        log_probs = []
+        rewards = torch.zeros(env.batch_size, env.num_nodes - 1, dtype=torch.float, device=self.device)
+        log_probs = torch.zeros(env.batch_size, env.num_nodes - 1, dtype=torch.float, device=self.device)
         tour = [env.depots]
         t = 0
         while not done:
@@ -95,11 +96,13 @@ class AgentMLP:
 
             # Compute loss
             _, loss, done, _ = env.step(selected)
+            env.render()
 
-            # Store result TODO: Make code more efficient with batch operations through big Tensor while maintaining Gradient informations
+            # Store result
+            # TODO: Make code more efficient with batch operations through big Tensor
             state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
-            rewards.append(torch.tensor(loss, dtype=torch.float, device=self.device).squeeze())
-            log_probs.append(torch.gather(torch.log(policy), dim=1, index=selected).squeeze())
+            rewards[:, t] += loss
+            log_probs[:, t] = torch.gather(torch.log(policy), dim=1, index=selected).squeeze()
             tour.append(selected)
             t += 1
 
@@ -123,19 +126,10 @@ class AgentMLP:
             tour, log_probs, rewards = self.predict(env)
 
             # Compute Reward for the trajectory
-            returns = deque()
-            R = 0
-            for r in rewards[::-1]:
-                R = r + self.gamma * R
-                returns.appendleft(R)
-            returns = torch.tensor(returns)
-            discounts = torch.tensor([self.gamma ** i for i in range(len(rewards))])
+            G = discounted_rewards(rewards, self.gamma)
 
             # Compute Policy loss
-            policy_loss = []
-            for log_prob, R in zip(log_probs, returns):
-                policy_loss.append(-log_prob * R)
-            policy_loss = torch.sum(torch.stack(policy_loss))
+            policy_loss = -log_probs * G
 
             # Back-propagate the policy loss
             self.optimizer.zero_grad()
@@ -143,4 +137,5 @@ class AgentMLP:
             self.optimizer.step()
 
             # report
-            print(f"epoch {i}: loss={policy_loss}")
+            if i % 1000 == 0:
+                print(f"epoch {i}: loss={policy_loss}")

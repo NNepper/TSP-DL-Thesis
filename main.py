@@ -1,5 +1,6 @@
 from agents import AgentMLP
 from gym_vrp.envs import TSPEnv
+import torch
 
 # Environment
 env = TSPEnv(
@@ -8,6 +9,7 @@ env = TSPEnv(
     num_draw=1,
     seed=69
 )
+env.render()
 
 # Agent
 agent = AgentMLP(
@@ -16,5 +18,7 @@ agent = AgentMLP(
     lr=1e-3,
 )
 
+torch.autograd.set_detect_anomaly(True)
+
 if __name__ == '__main__':
-    agent.train(env, 10000)
+    agent.train(env, 1000)
