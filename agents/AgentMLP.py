@@ -6,9 +6,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical
 
-from collections import deque
-
-from gym_vrp.envs import TSPEnv
 from common import discounted_rewards
 
 
@@ -19,19 +16,19 @@ class PolicyNetMLP(nn.Module):
         # Dense-Layer
         self.dense = nn.Sequential(
             nn.Linear(input_dim, layer_dim),
-            nn.ReLU())
+            nn.Tanh())
         for _ in range(layer_number - 2):
             self.dense.append(nn.Linear(layer_dim, layer_dim))
-            self.dense.append(nn.ReLU())
+            self.dense.append(nn.Tanh())
         self.dense.append(nn.Linear(layer_dim, output_dim))
-        self.dense.append(nn.ReLU())
+        self.dense.append(nn.Tanh())
 
         # Output softmax
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, input, mask):
         output = self.dense(input)
-        output_masked = output.masked_fill(mask.bool(), float('-1e2'))
+        output_masked = output.masked_fill(mask.bool(), float('-1e8'))
         probs = self.softmax(output_masked)
         return probs
 
@@ -40,8 +37,9 @@ class AgentMLP:
     def __init__(self,
                  graph_size: int,
                  layer_number: int,
+                 layer_dim: int,
                  seed: int = 88,
-                 gamma: float = 0.50,
+                 gamma: float = 0.99,
                  lr=.001):
 
         super().__init__()
@@ -49,9 +47,9 @@ class AgentMLP:
 
         # Torch configuration
         random.seed(seed)
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
-        torch.backends.cudnn.deterministic = True
+        #torch.manual_seed(seed)
+        #torch.cuda.manual_seed(seed)
+        #torch.backends.cudnn.deterministic = True
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
 
         # Policy model
@@ -59,7 +57,7 @@ class AgentMLP:
         self.model = PolicyNetMLP(
             input_dim=input_dim,
             output_dim=graph_size,
-            layer_dim=input_dim,
+            layer_dim=layer_dim,
             layer_number=layer_number
         )
 
@@ -96,13 +94,12 @@ class AgentMLP:
 
             # Compute loss
             _, loss, done, _ = env.step(selected)
-            env.render()
 
             # Store result
             # TODO: Make code more efficient with batch operations through big Tensor
             state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
             rewards[:, t] += loss
-            log_probs[:, t] = torch.gather(torch.log(policy), dim=1, index=selected).squeeze()
+            log_probs[:, t] = sampler.log_prob(selected)
             tour.append(selected)
             t += 1
 
@@ -118,24 +115,29 @@ class AgentMLP:
         :param epochs:int=100: Specify the number of epochs to train for
         :return: The loss, which is the negative of the reward
         """
+        G_list = []
+
         for i in range(epochs):
             self.model.train()
-            env.reset()
+            env.restart()
 
             # Predict tour
             tour, log_probs, rewards = self.predict(env)
 
-            # Compute Reward for the trajectory
+            # Compute Discounted rewards for the trajectory
             G = discounted_rewards(rewards, self.gamma)
 
-            # Compute Policy loss
-            policy_loss = -log_probs * G
-
-            # Back-propagate the policy loss
+            # Back-propagate the policy loss for each timestep
             self.optimizer.zero_grad()
-            policy_loss.backward()
+            for b in range(env.batch_size):
+                for t in range(env.num_nodes - 1):
+                    policy_loss_t = -log_probs[b,t] * G[b,t]
+                    policy_loss_t.backward(retain_graph=True)
             self.optimizer.step()
 
             # report
-            if i % 1000 == 0:
-                print(f"epoch {i}: loss={policy_loss}")
+            G_list.append(G[0,0])
+            if i % 100 == 0:
+                #best_sol.render()
+                print(f"epoch n°{i}: best tour length: {G[0,0]}")
+        return G_list

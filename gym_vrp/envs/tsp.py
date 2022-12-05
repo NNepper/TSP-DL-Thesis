@@ -157,7 +157,7 @@ class TSPEnv(Env):
 
     def reset(self) -> Union[ObsType, Tuple[ObsType, dict]]:
         """
-        Resets the environment. 
+        Resets the environment. Generating new batch of Graphs
 
         Returns:
             Union[ObsType, Tuple[ObsType, dict]]: State of the environment.
@@ -166,6 +166,20 @@ class TSPEnv(Env):
         self.step_count = 0
         self.generate_graphs()
         return self.get_state()
+
+    def restart(self) -> Union[ObsType, Tuple[ObsType, dict]]:
+        """
+        Restart the environment. Keep the previous batch of Graphs
+
+        Returns:
+            Union[ObsType, Tuple[ObsType, dict]]: State of the environment.
+        """
+        self.step_count = 0
+        self.visited = np.zeros(shape=(self.batch_size, self.num_nodes))
+        self.current_location = self.depots
+
+        for graph in self.sampler.graphs:
+            graph.set_default_node_attributes()
 
     def generate_graphs(self):
         """

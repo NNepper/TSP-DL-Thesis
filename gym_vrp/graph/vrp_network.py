@@ -1,8 +1,9 @@
 from typing import List
 
-from .vrp_graph import VRPGraph
 import matplotlib.pyplot as plt
 import numpy as np
+
+from .vrp_graph import VRPGraph
 
 
 class VRPNetwork:
@@ -113,7 +114,8 @@ class VRPNetwork:
 
         Args:
             graph_idxs (np.ndarray): Idxs of graphs which get drawn.
-                Expected to be of shape (x, ). 
+                Expected to be of shape (x, ).
+            filename (str): Name of the file where we have to store the plot
         
         Returns:
             np.ndarray: Plot as rgb-array of shape (width, height, 3).
