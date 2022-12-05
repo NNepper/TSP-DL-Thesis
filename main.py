@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 from agents import AgentMLP
@@ -20,9 +21,15 @@ if __name__ == '__main__':
     agent = AgentMLP(
         graph_size=20,
         layer_number=6,
-        layer_dim = 256,
-        lr=1e-2,
-        gamma=0.99
+        layer_dim = 128,
+        lr=1e-6,
+        gamma=0.70
     )
-    rewards = agent.train(env, 1000)
-    plot_performance(rewards)
+
+    rewards = np.zeros(shape=(10,10))
+    for i in range(100):
+        rewards[i] = agent.train(env, 10)
+        env.reset()
+        print(rewards)
+
+    plot_performance(np.mean(rewards, axis=1))

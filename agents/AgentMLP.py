@@ -16,12 +16,12 @@ class PolicyNetMLP(nn.Module):
         # Dense-Layer
         self.dense = nn.Sequential(
             nn.Linear(input_dim, layer_dim),
-            nn.Tanh())
+            nn.ReLU())
         for _ in range(layer_number - 2):
             self.dense.append(nn.Linear(layer_dim, layer_dim))
-            self.dense.append(nn.Tanh())
+            self.dense.append(nn.ReLU())
         self.dense.append(nn.Linear(layer_dim, output_dim))
-        self.dense.append(nn.Tanh())
+        self.dense.append(nn.ReLU())
 
         # Output softmax
         self.softmax = nn.Softmax(dim=1)
@@ -47,9 +47,9 @@ class AgentMLP:
 
         # Torch configuration
         random.seed(seed)
-        #torch.manual_seed(seed)
-        #torch.cuda.manual_seed(seed)
-        #torch.backends.cudnn.deterministic = True
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.backends.cudnn.deterministic = True
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
 
         # Policy model
@@ -65,7 +65,6 @@ class AgentMLP:
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
     def predict(self, env):
-        state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
 
         # Trajectory
         done = False
@@ -74,6 +73,9 @@ class AgentMLP:
         tour = [env.depots]
         t = 0
         while not done:
+            # Current state
+            state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
+
             # Mask already visited nodes
             mask = torch.tensor(env.generate_mask(), dtype=torch.float, device=self.device)
 
@@ -96,8 +98,6 @@ class AgentMLP:
             _, loss, done, _ = env.step(selected)
 
             # Store result
-            # TODO: Make code more efficient with batch operations through big Tensor
-            state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
             rewards[:, t] += loss
             log_probs[:, t] = sampler.log_prob(selected)
             tour.append(selected)
@@ -139,5 +139,5 @@ class AgentMLP:
             G_list.append(G[0,0])
             if i % 100 == 0:
                 #best_sol.render()
-                print(f"epoch n°{i}: best tour length: {G[0,0]}")
+                print(f"epoch n°{i}: {G[0,0]}")
         return G_list
