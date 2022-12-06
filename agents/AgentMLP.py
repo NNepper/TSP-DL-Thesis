@@ -124,8 +124,11 @@ class AgentMLP:
             # Predict tour
             tour, log_probs, rewards = self.predict(env)
 
+            # Normalized rewards
+            rewards_b = (rewards - torch.mean(rewards)) / torch.std(rewards)
+
             # Compute Discounted rewards for the trajectory
-            G = discounted_rewards(rewards, self.gamma)
+            G = discounted_rewards(rewards_b, self.gamma)
 
             # Back-propagate the policy loss for each timestep
             self.optimizer.zero_grad()
@@ -136,8 +139,8 @@ class AgentMLP:
             self.optimizer.step()
 
             # report
-            G_list.append(G[0,0])
-            if i % 100 == 0:
-                #best_sol.render()
-                print(f"epoch n°{i}: {G[0,0]}")
+            G_list.append(torch.sum(rewards)*-1)
+
+            if i % 10000 == 0:
+                print(f"epoch: {i}/100000 | {torch.sum(rewards)*-1}")
         return G_list
