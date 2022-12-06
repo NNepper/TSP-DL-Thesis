@@ -20,16 +20,12 @@ if __name__ == '__main__':
     # Agent
     agent = AgentMLP(
         graph_size=20,
-        layer_number=6,
+        layer_number=10,
         layer_dim = 128,
-        lr=1e-6,
-        gamma=0.70
+        lr=1e-12,
+        gamma=1
     )
 
-    rewards = np.zeros(shape=(10,10))
-    for i in range(100):
-        rewards[i] = agent.train(env, 10)
-        env.reset()
-        print(rewards)
+    rewards = agent.train(env, 100000)
 
-    plot_performance(np.mean(rewards, axis=1))
+    plot_performance(rewards)
