@@ -1,7 +1,6 @@
-import numpy as np
 import torch
 
-from agents import AgentMLP
+from agents import AgentOverfit
 from common.utils import plot_performance
 from gym_vrp.envs import TSPEnv
 
@@ -18,14 +17,15 @@ if __name__ == '__main__':
     )
 
     # Agent
-    agent = AgentMLP(
+    agent = AgentOverfit(
         graph_size=20,
-        layer_number=10,
-        layer_dim = 128,
-        lr=1e-12,
+        layer_number=8,
+        layer_dim = 1024,
+        lr=1e-4,
         gamma=1
     )
+    env.render()
 
-    rewards = agent.train(env, 100000)
+    best_sol, rewards = agent.train(env, 5000)
 
     plot_performance(rewards)

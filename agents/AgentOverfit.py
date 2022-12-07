@@ -1,4 +1,5 @@
 # Libs
+import copy
 import random
 
 import numpy as np
@@ -10,7 +11,7 @@ from torch.distributions import Categorical
 from common import discounted_rewards
 
 
-class PolicyNetMLP(nn.Module):
+class PolicyNetOverfit(nn.Module):
     def __init__(self, input_dim, layer_dim, layer_number, output_dim):
         super().__init__()
 
@@ -32,14 +33,13 @@ class PolicyNetMLP(nn.Module):
         # Output softmax
         self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, input, mask):
-        output = self.dense(nn.functional.normalize(input))
-        output_masked = output.masked_fill(mask.bool(), float('-1e8'))
-        probs = self.softmax(output_masked)
+    def forward(self, input):
+        output = self.dense(input)
+        probs = self.softmax(output)
         return probs
 
 
-class AgentMLP:
+class AgentOverfit:
     def __init__(self,
                  graph_size: int,
                  layer_number: int,
@@ -59,10 +59,10 @@ class AgentMLP:
         torch.backends.cudnn.deterministic = True
 
         # Policy model
-        input_dim = (graph_size * 2) + graph_size + 1
-        self.model = PolicyNetMLP(
+        input_dim = graph_size * 2
+        self.model = PolicyNetOverfit(
             input_dim=input_dim,
-            output_dim=graph_size,
+            output_dim=(graph_size-1)*graph_size,
             layer_dim=layer_dim,
             layer_number=layer_number
         ).to(self.device)
@@ -71,34 +71,32 @@ class AgentMLP:
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
     def predict(self, env):
+        done = False
+        t = 0
 
         # Trajectory
-        done = False
         rewards = torch.zeros(env.batch_size, env.num_nodes - 1, dtype=torch.float)
         log_probs = torch.zeros(env.batch_size, env.num_nodes - 1, dtype=torch.float)
-        tour = [env.depots]
-        t = 0
-        while not done:
-            # Current state
-            state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
+        tour = []
 
-            # Mask already visited nodes
-            mask = torch.tensor(env.generate_mask(), dtype=torch.float, device=self.device)
+        # Current state
+        state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
 
-            # Forming the input vector
-            input = torch.hstack((
-                torch.tensor(env.depots),
-                state[:, :, 0],
-                state[:, :, 1],
-                mask
-            ))
+        # Forming the input vector
+        input = torch.hstack((
+            state[:, :, 0],
+            state[:, :, 1],
+        ))
 
-            # Find probabilities
-            policy = self.model(input, mask)
+        policy = self.model(input)
+
+        for i in range(env.num_nodes-1):
+            mask = torch.flatten(torch.tensor(np.array([env.generate_mask()] * (env.num_nodes-1))))
+            policy = policy.masked_fill(mask.bool(), float('1e-8'))
 
             # Sample the action
-            sampler = Categorical(policy)
-            selected = sampler.sample().unsqueeze(1)
+            sampler = Categorical(policy[:,i*env.num_nodes:(i*env.num_nodes)+env.num_nodes])
+            selected = sampler.sample().unsqueeze(0)
 
             # Compute loss
             _, loss, done, _ = env.step(selected)
@@ -122,10 +120,12 @@ class AgentMLP:
         :return: The loss, which is the negative of the reward
         """
         G_list = []
-        self.model.train()
+        best_length = float("inf")
+        best_env = copy.deepcopy(env)
 
         for i in range(epochs):
             env.restart()
+            self.model.train()
 
             # Predict tour
             tour, log_probs, rewards = self.predict(env)
@@ -143,10 +143,15 @@ class AgentMLP:
 
             self.optimizer.step()
 
+
             # report
-            G_list.append(torch.sum(rewards)*-1)
+            tour_length = torch.sum(rewards)*-1
+            if tour_length < best_length:
+                best_length = tour_length
+                best_env = copy.deepcopy(env)
+            G_list.append(tour_length)
 
 
             if i % 100 == 0 and i>0:
                 print('Trajectory {}\tAverage Score: {:.2f}'.format(i, np.mean(G_list[-100:-1])))
-        return G_list
+        return best_env, G_list
