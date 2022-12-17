@@ -1,1 +1,1 @@
-# TSP-DeepRL-Thesis
+![alt text](https://github.com/NNepper/TSP-DeepRL-Thesis/blob/d119f43a57ce3c8c2a85b5119af4ca1d763c84ea/poster.png?raw=false)
