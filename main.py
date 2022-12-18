@@ -1,10 +1,9 @@
 import torch
 
-from agents import AgentOverfit
+from agents import AgentOverfit, AgentMLP
 from common.utils import plot_performance
 from gym_vrp.envs import TSPEnv
 
-torch.autograd.set_detect_anomaly(True)
 
 if __name__ == '__main__':
 
@@ -17,15 +16,16 @@ if __name__ == '__main__':
     )
 
     # Agent
-    agent = AgentOverfit(
+    agent = AgentMLP(
         graph_size=20,
-        layer_number=8,
+        layer_number=10,
         layer_dim = 1024,
-        lr=1e-4,
+        lr=1e-6,
         gamma=1
     )
     env.render()
 
-    best_sol, rewards = agent.train(env, 5000)
+    best_sol, length, rewards = agent.train(env, 3000)
 
     plot_performance(rewards)
+    best_sol.render()
