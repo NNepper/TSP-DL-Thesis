@@ -2,6 +2,7 @@ from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 from .vrp_graph import VRPGraph
 
@@ -55,11 +56,12 @@ class VRPNetwork:
         Returns:
             float: Euclid distance between the two nodes
         """
-        return self.graphs[graph_idx].euclid_distance(node_idx_1, node_idx_2)
+        with torch.no_grad():
+            return self.graphs[graph_idx].euclid_distance(node_idx_1, node_idx_2)
 
-    def get_distances(self, paths) -> np.ndarray:
+    def get_distances_path(self, paths) -> np.ndarray:
         """
-        Calculatest the euclid distance between
+        Calculate the euclid distance between
         each node pair in paths.
 
         Args:
@@ -73,10 +75,17 @@ class VRPNetwork:
         """
         return np.array(
             [
-                self.get_distance(index, source, dest)
+                self.graphs[index].euclid_distance(source,dest)
                 for index, (source, dest) in enumerate(paths)
             ]
         )
+
+    def get_distances(self):
+        node_distances = np.zeros(shape=(len(self.graphs), self.num_nodes, self.num_nodes))
+        for i, graph in enumerate(self.graphs):
+            node_distances[i] = graph.distances
+
+        return node_distances
 
     def get_depots(self) -> np.ndarray:
         """

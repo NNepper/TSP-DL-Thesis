@@ -103,7 +103,7 @@ class TSPEnv(Env):
 
         return (
             self.get_state(),
-            -self.sampler.get_distances(traversed_edges),
+            -self.sampler.get_distances_path(traversed_edges),
             done,
             None,
         )
@@ -126,6 +126,7 @@ class TSPEnv(Env):
         state = np.dstack(
             [
                 self.sampler.get_graph_positions(),
+                self.sampler.get_distances(),
                 np.zeros((self.batch_size, self.num_nodes)),
                 self.generate_mask(),
             ]

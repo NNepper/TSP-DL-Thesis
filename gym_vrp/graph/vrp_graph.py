@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+from scipy.spatial import distance
 
 
 class VRPGraph:
@@ -43,6 +44,10 @@ class VRPGraph:
         demand[self.depots] = 0
         node_demand = {i: d for i, d in enumerate(demand)}
         nx.set_node_attributes(self.graph, node_demand, "demand")
+
+        # compute euclidean pairwise distance
+        position_matrix = np.array([node_position[index] for index in range(num_nodes)])
+        self.distances = distance.cdist(position_matrix, position_matrix, 'euclidean')
 
         self.set_default_node_attributes()
 
@@ -140,7 +145,4 @@ class VRPGraph:
         with their idx's respectively.
         """
 
-        node_one_pos = self.graph.nodes[node1_idx]["coordinates"]
-        node_two_pos = self.graph.nodes[node2_idx]["coordinates"]
-
-        return np.linalg.norm(node_one_pos - node_two_pos)
+        return self.distances[node1_idx, node2_idx]

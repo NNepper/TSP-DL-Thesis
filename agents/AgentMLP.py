@@ -2,7 +2,6 @@
 import copy
 import random
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -27,7 +26,6 @@ class PolicyNetMLP(nn.Module):
             self.dense.append(nn.Linear(layer_dim, layer_dim))
             self.dense.append(nn.ReLU())
 
-
         self.dense.append(nn.Linear(layer_dim, output_dim))
 
         # Output softmax
@@ -47,10 +45,12 @@ class AgentMLP:
                  layer_dim: int,
                  seed: int = 88,
                  gamma: float = 0.99,
+                 baseline=True,
                  lr=.001):
 
         super().__init__()
         self.gamma = gamma
+        self.baseline = baseline
 
         # Torch configuration
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
@@ -60,7 +60,7 @@ class AgentMLP:
         torch.backends.cudnn.deterministic = True
 
         # Policy model
-        input_dim = (graph_size * graph_size) + graph_size + 2
+        input_dim = (graph_size * graph_size) + graph_size + 1
         self.model = PolicyNetMLP(
             input_dim=input_dim,
             output_dim=graph_size,
@@ -69,8 +69,8 @@ class AgentMLP:
         ).to(self.device)
 
         # Optimization
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr, amsgrad=True)
-        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=500, gamma=0.5)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=lr, maximize=True)
+        #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=0.5)
 
     def predict(self, env):
 
@@ -90,10 +90,8 @@ class AgentMLP:
             # Forming the input vector
             input = torch.hstack((
                 torch.tensor(env.depots),
-                state[:, :, 0],
-                state[:, :, 1],
-                mask,
-                torch.tensor(env.current_location)
+                state[:, :, 2:22].flatten(1),
+                mask
             ))
 
             # Find probabilities
@@ -124,11 +122,12 @@ class AgentMLP:
         :param epochs:int=100: Specify the number of epochs to train for
         :return: The loss, which is the negative of the reward
         """
-        G = torch.zeros(epochs, env.num_nodes-1)
+        G = torch.zeros(epochs, env.num_nodes - 1)
         self.model.train()
 
         best_sol = env
         best_length = float("inf")
+        b = torch.zeros(env.num_nodes - 1)
 
         for i in range(epochs):
             env.restart()
@@ -137,27 +136,29 @@ class AgentMLP:
             tour, log_probs, rewards = self.predict(env)
 
             # Compute Discounted rewards for the trajectory
-            G[i,:] = discounted_rewards(rewards, self.gamma)
+            G[i, :] = discounted_rewards(rewards, self.gamma)
 
             # Discounted with Baseline
             with torch.no_grad():
-                advantage_t = G[i,:]-baseline
+                advantage_t = G[i, :] - b
 
             # Back-propagate the policy loss for each timestep
             self.optimizer.zero_grad()
-            policy_loss = torch.sum(-log_probs * advantage_t)
+            policy_loss = torch.sum(log_probs * advantage_t)
             policy_loss.backward()
 
             self.optimizer.step()
-            self.scheduler.step()
+            #self.scheduler.step()
 
             # report
             length = -torch.sum(rewards)
             if length < best_length:
                 best_length = length
                 best_sol = copy.deepcopy(env)
-                baseline = G[i,:]
+                b = G[i,:]
 
-            if i%100 == 0:
-                print(f'Trajectory {i}\tBaseline: {str(baseline[0])}\tBest length:{best_length}\tLearning rate:{self.scheduler.get_last_lr()}')
-        return best_sol, best_length, G[:,0]
+            if i % 10 == 0:
+                print(
+                    f'Trajectory {i}\tBaseline: {str(b[0])}\tBest length:{best_length}')
+
+        return best_sol, best_length, G[:, 0]
