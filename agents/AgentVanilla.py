@@ -3,46 +3,15 @@ import copy
 import random
 
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical
 
 from common import discounted_rewards
 
 
-class PolicyNetMLP(nn.Module):
-    def __init__(self, input_dim, layer_dim, layer_number, output_dim):
-        super().__init__()
-
-        # Dense-Layer
-        self.dense = nn.Sequential(
-            nn.Linear(input_dim, layer_dim),
-            nn.ReLU(),
-            nn.Linear(layer_dim, layer_dim),
-            nn.ReLU()
-        )
-
-        for _ in range(layer_number - 2):
-            self.dense.append(nn.Linear(layer_dim, layer_dim))
-            self.dense.append(nn.ReLU())
-
-        self.dense.append(nn.Linear(layer_dim, output_dim))
-
-        # Output softmax
-        self.softmax = nn.Softmax(dim=1)
-
-    def forward(self, input, mask):
-        output = self.dense(input)
-        output_masked = output.masked_fill(mask.bool(), float('-1e8'))
-        probs = self.softmax(output_masked)
-        return probs
-
-
-class AgentMLP:
+class AgentVanilla:
     def __init__(self,
-                 graph_size: int,
-                 layer_number: int,
-                 layer_dim: int,
+                 model,
                  seed: int = 88,
                  gamma: float = 0.99,
                  baseline=True,
@@ -60,16 +29,10 @@ class AgentMLP:
         torch.backends.cudnn.deterministic = True
 
         # Policy model
-        input_dim = (graph_size * graph_size) + graph_size + 1
-        self.model = PolicyNetMLP(
-            input_dim=input_dim,
-            output_dim=graph_size,
-            layer_dim=layer_dim,
-            layer_number=layer_number
-        ).to(self.device)
+        self.model = model.to(self.device)
 
         # Optimization
-        self.optimizer = optim.SGD(self.model.parameters(), lr=lr, maximize=True)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr, maximize=True)
         #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=0.5)
 
     def predict(self, env):
@@ -140,6 +103,9 @@ class AgentMLP:
 
             # Discounted with Baseline
             with torch.no_grad():
+
+
+
                 advantage_t = G[i, :] - b
 
             # Back-propagate the policy loss for each timestep
