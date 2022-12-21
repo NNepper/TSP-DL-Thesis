@@ -1,10 +1,9 @@
-from agents import AgentVanilla
+from agents import AgentPPO
 from common.utils import plot_performance
 from gym_vrp.envs import TSPEnv
 from model import PolicyFeedForward
 
 if __name__ == '__main__':
-
     # Environment
     env = TSPEnv(
         num_nodes=20,
@@ -16,18 +15,17 @@ if __name__ == '__main__':
     # Model
     PolicyNet = PolicyFeedForward(
         graph_size=env.num_nodes,
-        layer_dim = 2048,
+        layer_dim=2048,
         layer_number=15,
     )
 
     # Agent
-    agent = AgentVanilla(
-        model = PolicyNet,
+    agent = AgentPPO(
+        model=PolicyNet,
         lr=1e-4,
         gamma=.99,
         baseline=True
     )
-
 
     env.render()
 
