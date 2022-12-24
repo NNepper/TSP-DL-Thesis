@@ -1,43 +1,44 @@
 # Libs
-import copy
 
 import torch
 import torch.optim as optim
 from torch.distributions import Categorical
 
+from agents import Agent
 from common import discounted_rewards
 
 
-class AgentVanilla:
+class AgentVanilla(Agent):
     def __init__(self,
-                 model,
-                 seed: int = 88,
-                 gamma: float = 0.99,
-                 baseline=True,
-                 lr=.001):
+                 config,
+                 model):
+        # Load from memory if already defined
+        loaded_model, loaded_config = super().__init__(config["directory"])
+        if loaded_config is not None:
+            config = loaded_config
+            model = loaded_model
 
-        super().__init__()
-        self.gamma = gamma
-        self.baseline = baseline
+        self.config = config
+        self.gamma = config["gamma"]
+        self.seed = config["seed"]
+        self.lr = config["lr"]
 
         # Torch configuration
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device("cuda:0" if config["cuda"] else 'cpu')
 
         # Policy model
         self.model = model.to(self.device)
 
         # Optimization
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr, maximize=True)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, maximize=True)
 
     def predict(self, env):
-
         # Trajectory
         done = False
         rewards = torch.zeros(env.batch_size, env.num_nodes - 1, dtype=torch.float)
         log_probs = torch.zeros(env.batch_size, env.num_nodes - 1, dtype=torch.float)
         tour = [env.depots]
-        t = 0
-        while not done:
+        for t in range(env.num_nodes - 1):
             # Current state
             state = torch.tensor(env.get_state(), dtype=torch.float, device=self.device)
 
@@ -48,7 +49,7 @@ class AgentVanilla:
 
             input = torch.hstack((
                 torch.tensor(env.depots),
-                state[:, :, 2:env.num_nodes+2].flatten(1),
+                state[:, :, 2:env.num_nodes + 2].flatten(1),
                 mask
             ))
 
@@ -66,7 +67,6 @@ class AgentVanilla:
             rewards[:, t] += loss
             log_probs[:, t] = sampler.log_prob(selected)
             tour.append(selected)
-            t += 1
 
         return tour, log_probs, rewards
 
@@ -102,13 +102,8 @@ class AgentVanilla:
             self.optimizer.step()
 
             # report
-            length = -torch.sum(rewards)
-            if length < best_length:
-                best_length = length
-                best_sol = copy.deepcopy(env)
-
-            """if i % 100 == 0 and i != 0:
-                print(
-                    f'Trajectory {i}\tMean rewards: {G[i - 100:i, 0].mean()}\tBest length:{best_length}')"""
-
+            self.log.info(f"epoch:[{i}/{epochs}] - G_0:{G[i,0]}")
+            self.tensorboard_writer.add_scalar("Reward", G[i,0])
+            self.tensorboard_writer.add_scalar("Epoch", i)
+        self.tensorboard_writer.flush()
         return best_sol, best_length, G[:, 0]

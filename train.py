@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from ray import tune, air
-from ray.air import session
 from ray.tune.search.optuna import OptunaSearch
 
 from agents import AgentVanilla
@@ -28,45 +27,55 @@ def train_ray(config):
             net = nn.DataParallel(net)
     net.to(device)
 
-    _, length, rewards = agent.train(env, 10000)
-
-    # report
-    results = {"length":float(length), "rewards" : rewards}
-    session.report(results)
-    return results
+    _, length, rewards = agent.train(env, 5000)
 
 
 # Environment
 env = TSPEnv(
-    num_nodes=20,
+    num_nodes=5,
     batch_size=1,
     num_draw=1,
     seed=69
 )
-if __name__ == '__main__':
-    search_space = {
-        "graph_size": 20,
-        "layer_dim": tune.choice([64, 128, 256, 512, 1024, 2048]),
-        "layer_number": tune.choice([2, 4, 8, 16]),
-        "gamma": tune.loguniform(0.55, 0.99),
-        "lr": tune.loguniform(1e-8, 1e-3),
-    }
 
+search_space = {
+    "graph_size": 5,
+    "layer_dim": tune.choice([64, 128, 256, 512]),
+    "layer_number": tune.choice([2, 4, 8, 16]),
+    "gamma": 1,
+    "lr": tune.loguniform(1e-8, 1e-3),
+}
+
+
+def tune_model(env, model, search_space, experiment_name):
+    # Directory of the results
+    dir = f"/results/{model}_{experiment_name}"
+
+    # Hyperparameters Tuning
     search_algo = OptunaSearch()
-
+    trainable_with_resources = tune.with_resources(train_ray, {"cpu": 2})
     tuner = tune.Tuner(
-        train_ray,
+        trainable_with_resources,
         tune_config=tune.TuneConfig(
-            metric="length",
-            mode="min",
-            num_samples=500,
+            search_algo=search_algo,
+            metric="rewards",
+            mode="max",
+            num_samples=50,
         ),
         run_config=air.RunConfig(log_to_file=True),
         param_space=search_space
     )
     results = tuner.fit()
+    best_config = results.get_best_result(metric="rewards", mode="max").config
 
-    best_results = results.get_best_result(metric="length", mode="min")
+    # Train with best Parameters
+    net = PolicyFeedForward(config=best_config)
+    agent = AgentVanilla(
+        model=net,
+        config=best_config
+    )
+    _, length, rewards = agent.train(env, 5000)
 
-    print("Best trial config: {}".format(best_results.config))
-    print("Best trial best length: {}".format(best_results.metrics["length"]))
+    # Save to dir
+    agent.save(dir)
+

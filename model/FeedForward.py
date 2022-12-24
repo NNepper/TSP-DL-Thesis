@@ -3,23 +3,26 @@ import torch.nn as nn
 
 
 class PolicyFeedForward(nn.Module):
-    def __init__(self, graph_size, layer_dim, layer_number):
+    def __init__(self, config):
         super().__init__()
-        input_dim = (graph_size * graph_size) + graph_size + 1
+        self.graph_size = config.num_nodes
+        self.layer_dim = config.layer_size
+        self.layer_number = config.layer_number
+        self.input_dim = (self.graph_size * self.graph_size) + self.graph_size + 1
 
         # Dense-Layer
         self.dense = nn.Sequential(
-            nn.Linear(input_dim, layer_dim),
+            nn.Linear(self.input_dim, self.layer_dim),
             nn.ReLU(),
-            nn.Linear(layer_dim, layer_dim),
+            nn.Linear(self.layer_dim, self.layer_dim),
             nn.ReLU()
         )
 
-        for _ in range(layer_number - 2):
-            self.dense.append(nn.Linear(layer_dim, layer_dim))
+        for _ in range(self.layer_number - 2):
+            self.dense.append(nn.Linear(self.layer_dim, self.layer_dim))
             self.dense.append(nn.ReLU())
 
-        self.dense.append(nn.Linear(layer_dim, graph_size))
+        self.dense.append(nn.Linear(self.layer_dim, self.graph_size))
 
         # Output softmax
         self.softmax = nn.Softmax(dim=1)
