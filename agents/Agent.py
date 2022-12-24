@@ -14,6 +14,8 @@ class Agent:
                                                 filename_suffix="")
         if os.path.exists(f"{directory}/model.pt"):
             return load(directory)
+        else:
+            return None, None
     def save(self):
         # save NeuralNet
         model_dir = f"{self.directory}/model.pt"

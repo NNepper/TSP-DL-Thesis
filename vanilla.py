@@ -22,6 +22,7 @@ parser.add_argument('--directory', type=str, default="./results", help='path whe
 
 config = parser.parse_args()
 config.cuda = config.cuda and torch.cuda.is_available()
+config.tuning = False
 
 # Environment
 env = TSPEnv(
@@ -32,7 +33,7 @@ env = TSPEnv(
 )
 
 # Model
-PolicyNet = PolicyFeedForward(config)
+PolicyNet = PolicyFeedForward(vars(config))
 
 # Agent
 agent = AgentVanilla(config=vars(config), model=PolicyNet)

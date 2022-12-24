@@ -5,9 +5,9 @@ import torch.nn as nn
 class PolicyFeedForward(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.graph_size = config.num_nodes
-        self.layer_dim = config.layer_size
-        self.layer_number = config.layer_number
+        self.graph_size = config["num_nodes"]
+        self.layer_dim = config["layer_size"]
+        self.layer_number = config["layer_number"]
         self.input_dim = (self.graph_size * self.graph_size) + self.graph_size + 1
 
         # Dense-Layer

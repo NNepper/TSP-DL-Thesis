@@ -1,7 +1,7 @@
 # Libs
-
 import torch
 import torch.optim as optim
+from ray.air import session
 from torch.distributions import Categorical
 
 from agents import Agent
@@ -14,11 +14,12 @@ class AgentVanilla(Agent):
                  model):
         # Load from memory if already defined
         loaded_model, loaded_config = super().__init__(config["directory"])
-        if loaded_config is not None:
+        if loaded_config is not None and not config["tune"]:
             config = loaded_config
             model = loaded_model
 
         self.config = config
+        self.tune = config["tune"]
         self.gamma = config["gamma"]
         self.seed = config["seed"]
         self.lr = config["lr"]
@@ -102,8 +103,13 @@ class AgentVanilla(Agent):
             self.optimizer.step()
 
             # report
-            self.log.info(f"epoch:[{i}/{epochs}] - G_0:{G[i,0]}")
-            self.tensorboard_writer.add_scalar("Reward", G[i,0])
-            self.tensorboard_writer.add_scalar("Epoch", i)
-        self.tensorboard_writer.flush()
+            if not self.tune:
+                self.log.info(f"epoch:[{i}/{epochs}] - G_0:{G[i,0]}")
+                self.tensorboard_writer.add_scalar("Reward", G[i,0])
+                self.tensorboard_writer.add_scalar("Epoch", i)
+            else:
+                results = {"rewards": float(G[i, 0])}
+                session.report(results)
+        if not self.tune:
+            self.tensorboard_writer.flush()
         return best_sol, best_length, G[:, 0]
