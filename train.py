@@ -39,7 +39,7 @@ env = TSPEnv(
 
 search_space_config = {
     "num_nodes": 5,
-    "layer_size": tune.choice([64, 128, 256, 512]),
+    "layer_size": tune.choice([64, 128, 256, 512, 1024]),
     "layer_number": tune.choice([2, 4, 8, 16]),
     "gamma": 1,
     "lr": tune.loguniform(1e-8, 1e-3),
@@ -49,14 +49,14 @@ search_space_config = {
 
 # Hyperparameters Tuning
 search_algo = OptunaSearch()
-trainable_with_resources = tune.with_resources(train_ray, {"cpu": 2})
+trainable_with_resources = tune.with_resources(train_ray, {"cpu": 1})
 tuner = tune.Tuner(
     trainable_with_resources,
     tune_config=tune.TuneConfig(
         search_alg=search_algo,
         metric="rewards",
         mode="max",
-        num_samples=50,
+        num_samples=100,
     ),
     run_config=air.RunConfig(log_to_file=True),
     param_space=search_space_config
