@@ -6,9 +6,16 @@ import torch.nn.functional as F
 from torch_geometric.nn import SAGEConv
 from torch_geometric.utils import softmax
 
-with open('data/dataset.pkl', 'rb') as f:
-    dataset = pickle.load(f)
-    data, target, opt_length = dataset[0]
+
+def custom_loss(pred_pi, pairwise_distance, opt_length):
+    expected_length = .0
+    traversed_nodes = {}
+    curr_idx = 0
+    for _ in range(pairwise_distance.shape[0]):
+        # Select most_probable next node
+        next_idx = torch.max(pairwise_distance[curr_idx, :])
+        expected_length += pred_pi[curr_idx, next_idx] * pairwise_distance
+    return .0
 
 
 class GNNEncoder(nn.Module):
@@ -32,10 +39,11 @@ class GNNEncoder(nn.Module):
 class DotDecoder(nn.Module):
     def __init__(self):
         super().__init__()
+        self.softmax = nn.Softmax()
 
     def forward(self, x, edge_index):
         logit = x @ x.t()
-        probs = softmax(logit, edge_index)
+        probs = self.softmax(logit)
         return probs
 
 
@@ -53,15 +61,19 @@ class Graph2Graph(torch.nn.Module):
 
 
 if __name__ == '__main__':
-    model = Graph2Graph(input_dim=10, hidden_dim=64)
+    # Data importing
+    with open('data/dataset.pkl', 'rb') as f:
+        dataset = pickle.load(f)
+        data, target, opt_length = dataset[0]
 
+    # Model Initialization
+    model = Graph2Graph(input_dim=10, hidden_dim=64)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: '{device}'")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    print(target)
-    total_loss = total_examples = 0
 
+    total_loss = total_examples = prev_loss = 0
     for epoch in range(1, 100000):
         optimizer.zero_grad()
 
@@ -69,12 +81,16 @@ if __name__ == '__main__':
         data.to(device)
         pred = model.forward(data)
 
-        loss = F.binary_cross_entropy_with_logits(pred, target)
+        loss = custom_loss(pred, target)
 
         loss.backward()
         optimizer.step()
         total_loss += loss.sum()
         total_examples += pred.numel()
-        if epoch % 1000 == 0:
+        if epoch % 100 == 0:
             print(f"Epoch: {epoch:03d}, Loss: {total_loss / total_examples:.4f}")
-            # print(pred)
+            if abs(total_loss - prev_loss) > 10e-6:
+                prev_loss = total_loss
+            else:
+                print(pred)
+                break
