@@ -4,36 +4,40 @@ import tqdm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import SAGEConv
+from torch_geometric.nn import AGNNConv
 from torch_geometric.utils import softmax
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import Batch
 from torch_geometric.data import Data
 
-def custom_loss(pred_pi, pairwise_distance, opt_length):
-    expected_length = torch.Tensor([.0])
+from common.utils import sample_draw_probs_graph
+
+
+def custom_loss(batch_pi, batch_distances, opt_length):
+    expected_length = torch.zeros(batch_pi.shape[0])
     traversed_nodes = set()
+    pairwise_distances = torch.split(batch_distances, batch_distances.shape[0] // opt_length.shape[0])
     curr_idx = 0
-    route = torch.argmax(pairwise_distance, dim=1)
-    for i, next_idx in enumerate(route):
-        expected_length += pred_pi[curr_idx, next_idx] * pairwise_distance[curr_idx, next_idx]
-        traversed_nodes |= {next_idx}
-    if len(traversed_nodes) < pairwise_distance.shape[0]: # Penalize non-Hamiltonian tour
-        penalty = (len(traversed_nodes) - pairwise_distance) * opt_length
-        return torch.abs((expected_length + penalty) - opt_length)
+    for i, pred in enumerate(batch_pi):
+        route = torch.argmax(pairwise_distances[i], dim=1)
+        for next_idx in route:
+            expected_length += pred[curr_idx, next_idx] * pairwise_distances[i][curr_idx, next_idx]
+            traversed_nodes |= {int(next_idx)}
+        if len(traversed_nodes) < pairwise_distances[i].shape[0]:  # Penalize non-Hamiltonian tour
+            penalty = (len(traversed_nodes) - pairwise_distances[i].shape[0]) * opt_length
+            return torch.abs((expected_length + penalty) - opt_length)
     return torch.abs(expected_length - opt_length)
 
 
 class GNNEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, drop_rate=0.1):
+    def __init__(self, input_dim, hidden_dim, drop_rate=0.10):
         super().__init__()
         self.dropout = drop_rate
-        self.conv1 = SAGEConv(input_dim, hidden_dim)
+        self.conv1 = AGNNConv(input_dim, hidden_dim)
         self.activ = nn.ReLU()
-        self.conv2 = SAGEConv(hidden_dim, hidden_dim)
+        self.conv2 = AGNNConv(hidden_dim, hidden_dim)
 
-    def forward(self, data):
-        x, edge_index = data.x, data.edge_index
+    def forward(self, x, edge_index):
         x = self.conv1(x, edge_index)
         x = self.activ(x)
 
@@ -43,25 +47,27 @@ class GNNEncoder(nn.Module):
 
 
 class DotDecoder(nn.Module):
-    def __init__(self):
+    def __init__(self, graph_size):
         super().__init__()
         self.softmax = nn.Softmax()
+        self.graph_size = graph_size
 
     def forward(self, x, edge_index):
-        logit = x @ x.t()
-        probs = self.softmax(logit)
-        return probs
+        pi = torch.zeros(x.shape[0] // self.graph_size, self.graph_size, self.graph_size)
+        for i, x_batch in enumerate(torch.split(x, self.graph_size)):
+            logit = x_batch @ x_batch.t()
+            pi[i, :] = self.softmax(logit)
+        return pi
 
 
 class Graph2Graph(torch.nn.Module):
-    def __init__(self, input_dim, hidden_dim):
+    def __init__(self, graph_size, hidden_dim):
         super().__init__()
-        self.encoder = GNNEncoder(input_dim, hidden_dim)
-        self.decoder = DotDecoder()
+        self.encoder = GNNEncoder(graph_size, hidden_dim)
+        self.decoder = DotDecoder(graph_size)
 
-    def forward(self, data):
-        x, edge_index = data.x, data.edge_index
-        z = self.encoder(data)
+    def forward(self, x, edge_index):
+        z = self.encoder(x, edge_index)
         pi = self.decoder(z, edge_index)
         return pi
 
@@ -70,10 +76,10 @@ if __name__ == '__main__':
     # Data importing
     with open('data/dataset.pkl', 'rb') as f:
         graphs, target, opt_length = pickle.load(f)
-        dataLoader = DataLoader(graphs, batch_size=2)
+        dataLoader = DataLoader(graphs, batch_size=100)
 
     # Model Initialization
-    model = Graph2Graph(input_dim=10, hidden_dim=64)
+    model = Graph2Graph(graph_size=10, hidden_dim=128)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: '{device}'")
 
@@ -86,18 +92,19 @@ if __name__ == '__main__':
 
             batch.x = batch.x.to(torch.float32)
             batch.to(device)
-            pred = model.forward(batch)
+            pred = model.forward(batch.x, batch.edge_index)
 
-            loss = custom_loss(pred, batch.x, opt_length)
+            loss = custom_loss(pred, batch.x, batch.y).sum()
 
             loss.backward()
             optimizer.step()
             total_loss += loss.sum()
             total_examples += pred.numel()
-            if epoch % 100 == 0:
+            if epoch % 50 == 0:
                 print(f"Epoch: {epoch:03d}, Loss: {total_loss / total_examples:.4f}")
                 if abs(total_loss - prev_loss) > 10e-6:
                     prev_loss = total_loss
                 else:
-                    print(pred)
+                    fig, axs = sample_draw_probs_graph(batch, pred)
+                    fig.show()
                     break
