@@ -12,6 +12,7 @@ from torch_geometric.data import Data
 
 from common.utils import sample_draw_probs_graph
 
+
 def entropy_mixed_loss(batch_pi, batch_distances, opt_length):
     loss = torch.zeros(opt_length.shape)
     pairwise_distances = torch.split(batch_distances, batch_distances.shape[0] // opt_length.shape[0])
@@ -30,6 +31,7 @@ def entropy_mixed_loss(batch_pi, batch_distances, opt_length):
         loss[i] = pred_length - opt_length[i] - entropy_sum
     return loss
 
+
 def policy_gradient_loss(batch_pi, batch_distances, opt_length):
     loss = torch.zeros(opt_length.shape)
     pairwise_distances = torch.split(batch_distances, batch_distances.shape[0] // opt_length.shape[0])
@@ -44,6 +46,7 @@ def policy_gradient_loss(batch_pi, batch_distances, opt_length):
             curr_idx = next_idx
         loss[i] = pred_length - opt_length[i]
     return loss
+
 
 def custom_loss(batch_pi, batch_distances, opt_length):
     expected_length = torch.zeros(batch_pi.shape[0])
@@ -62,9 +65,8 @@ def custom_loss(batch_pi, batch_distances, opt_length):
     return torch.abs(expected_length - opt_length)
 
 
-
 class GNNEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, drop_rate=0.0):
+    def __init__(self, input_dim, hidden_dim, drop_rate=0.5):
         super().__init__()
         self.dropout = drop_rate
         self.conv1 = GATConv(input_dim, hidden_dim, head=4)
@@ -119,6 +121,7 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(model.parameters(), lr=.0001)
 
+    plot_counter = 0
     for batch in tqdm.tqdm(dataLoader):
         total_loss = total_examples = prev_loss = 0
         for epoch in range(1, 100000):
@@ -127,7 +130,7 @@ if __name__ == '__main__':
             X = torch.concat((batch.x, batch.coordinates), dim=1).to(torch.float32).to(device)
             pred = model.forward(X, batch.edge_index)
 
-            loss = entropy_mixed_loss(pred, batch.x, batch.y).sum()
+            loss = custom_loss(pred, batch.x, batch.y).sum()
 
             loss.backward()
             optimizer.step()
@@ -140,5 +143,6 @@ if __name__ == '__main__':
                 else:
                     print(loss)
                     fig, axs = sample_draw_probs_graph(batch, pred)
-                    fig.show()
+                    fig.savefig(f"{plot_counter}.png")
+                    plot_counter += 1
                     break
