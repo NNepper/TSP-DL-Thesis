@@ -28,6 +28,17 @@ class PolicyFeedForward(nn.Module):
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, input, mask):
+        """
+        The forward function takes in a batch of input sequences and masks,
+        and returns the probability distribution over all possible next Nodes.
+        The mask is used to prevent attention from being applied to visited Nodes.
+
+
+        :param self: Represent the instance of the class
+        :param input: Pass the input to the model
+        :param mask: Mask the visited Nodes in the input
+        :return: The probability distribution over the next Nodes
+        """
         output = self.dense(input)
         output_masked = output.masked_fill(mask.bool(), float('-1e8'))
         probs = self.softmax(output_masked)

@@ -11,9 +11,7 @@ from common import discounted_rewards
 
 
 class AgentPPO(Agent):
-    def __init__(self,
-                 model,
-                 config):
+    def __init__(self, model, config):
         # Load from memory if already defined
         loaded_model, loaded_config = super().__init__(config["directory"])
         if loaded_config is not None:
@@ -39,9 +37,7 @@ class AgentPPO(Agent):
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, maximize=True)
 
     def predict(self, env):
-
         # Trajectory
-        done = False
         rewards = torch.zeros(env.batch_size, env.num_nodes, dtype=torch.float)
         log_probs = torch.zeros(env.batch_size, env.num_nodes, env.num_nodes, dtype=torch.float)
         tour = torch.zeros(env.batch_size, env.num_nodes)

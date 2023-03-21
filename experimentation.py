@@ -1,19 +1,25 @@
 import pickle
-import tqdm
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch_geometric.nn import GATConv
-from torch_geometric.utils import softmax
+import tqdm
 from torch_geometric.loader import DataLoader
-from torch_geometric.data import Batch
-from torch_geometric.data import Data
 
 from common.utils import sample_draw_probs_graph
+from model.Graph2Graph import Graph2Graph
 
 
 def entropy_mixed_loss(batch_pi, batch_distances, opt_length):
+    """
+    The entropy_mixed_loss function takes in a batch of pi values, a batch of pairwise distances, and the optimal length
+    for each tour. It then calculates the loss for each tour by first decoding the greedy path from pi and calculating its
+    length. Then it subtracts this length from the optimal length to get an approximation of how far off we are. Finally,
+    it adds up all log(pi) values along that path to calculate entropy (which is subtracted because we want higher entropy).
+
+    :param batch_pi: Calculate the entropy of the tour
+    :param batch_distances: Compute the greedy tour length
+    :param opt_length: Calculate the loss
+    :return: A loss for each batch
+    """
     loss = torch.zeros(opt_length.shape)
     pairwise_distances = torch.split(batch_distances, batch_distances.shape[0] // opt_length.shape[0])
     for i, pred in enumerate(batch_pi):
@@ -25,6 +31,7 @@ def entropy_mixed_loss(batch_pi, batch_distances, opt_length):
         for _ in range(len(opt_length) - 1):
             next_idx = torch.argmax(pi_cpy[curr_idx, :])
             pred_length += pairwise_distances[i][curr_idx, next_idx]
+
             entropy_sum += torch.log(pred[curr_idx, next_idx])
             pi_cpy[:, next_idx] = .0
             curr_idx = next_idx
@@ -33,6 +40,17 @@ def entropy_mixed_loss(batch_pi, batch_distances, opt_length):
 
 
 def policy_gradient_loss(batch_pi, batch_distances, opt_length):
+    """
+    The policy_gradient_loss function takes in a batch of predicted tours and the optimal tour lengths,
+    and returns a loss value. The loss is calculated by taking the negative log probability of each edge in
+    the predicted tour multiplied by its distance, then subtracting that from the optimal length. This means
+    that we are trying to maximize our likelihood of predicting edges with shorter distances.
+
+    :param batch_pi: Calculate the loss
+    :param batch_distances: Calculate the loss
+    :param opt_length: Calculate the loss
+    :return: The loss of the policy gradient
+    """
     loss = torch.zeros(opt_length.shape)
     pairwise_distances = torch.split(batch_distances, batch_distances.shape[0] // opt_length.shape[0])
     for i, pred in enumerate(batch_pi):
@@ -49,6 +67,18 @@ def policy_gradient_loss(batch_pi, batch_distances, opt_length):
 
 
 def custom_loss(batch_pi, batch_distances, opt_length):
+    """
+    The custom_loss function takes in the predicted probability distribution over all possible routes,
+    the pairwise distances between each node, and the optimal length of a route. It then calculates
+    the expected length of a route based on the probabilities given by batch_pi. If this expected length is
+    greater than or equal to opt_length, it returns 0; otherwise it returns (expected_length - opt_length).
+    This loss function penalizes non-Hamiltonian tours by adding an additional penalty term to their cost.
+
+    :param batch_pi: Calculate the expected length of a route
+    :param batch_distances: Calculate the actual length of the route
+    :param opt_length: Calculate the penalty for non-hamiltonian tours
+    :return: The absolute difference between the expected length of a tour and the optimal length
+    """
     expected_length = torch.zeros(batch_pi.shape[0])
     traversed_nodes = set()
     pairwise_distances = torch.split(batch_distances, batch_distances.shape[0] // opt_length.shape[0])
@@ -63,49 +93,6 @@ def custom_loss(batch_pi, batch_distances, opt_length):
             penalty = (len(traversed_nodes) - pairwise_distances[i].shape[0]) * opt_length
             return torch.abs((expected_length + penalty) - opt_length)
     return torch.abs(expected_length - opt_length)
-
-
-class GNNEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, drop_rate=0.5):
-        super().__init__()
-        self.dropout = drop_rate
-        self.conv1 = GATConv(input_dim, hidden_dim, head=4)
-        self.activ = nn.ReLU()
-        self.conv2 = GATConv(hidden_dim, hidden_dim, head=4)
-
-    def forward(self, x, edge_index):
-        x = self.conv1(x, edge_index)
-        x = self.activ(x)
-
-        x = self.conv2(x, edge_index)
-        x = self.activ(x)
-        return x
-
-
-class DotDecoder(nn.Module):
-    def __init__(self, graph_size):
-        super().__init__()
-        self.softmax = nn.Softmax()
-        self.graph_size = graph_size
-
-    def forward(self, x, edge_index):
-        pi = torch.zeros(x.shape[0] // self.graph_size, self.graph_size, self.graph_size)
-        for i, x_batch in enumerate(torch.split(x, self.graph_size)):
-            logit = x_batch @ x_batch.t()
-            pi[i, :] = self.softmax(logit)
-        return pi
-
-
-class Graph2Graph(torch.nn.Module):
-    def __init__(self, graph_size, hidden_dim):
-        super().__init__()
-        self.encoder = GNNEncoder(graph_size + 2, hidden_dim)
-        self.decoder = DotDecoder(graph_size)
-
-    def forward(self, x, edge_index):
-        z = self.encoder(x, edge_index)
-        pi = self.decoder(z, edge_index)
-        return pi
 
 
 if __name__ == '__main__':
