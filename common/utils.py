@@ -1,12 +1,12 @@
+import random
 from collections import deque
 
+import networkx as nx
 import numpy as np
 import torch
-import random
 from matplotlib import pyplot as plt
-import networkx as nx
 from torch_geometric.utils import to_networkx
-from itertools import product
+
 
 def discounted_rewards(rewards, gamma):
     """
@@ -76,7 +76,6 @@ def draw_probs_graph(pyg_graph, probabilities, ax):
         "width": 1,
         "edge_cmap": plt.cm.Blues,
         "arrows": True,
-        "connectionstyle" : 'arc3, rad = 0.1',
     }
     nx.draw_networkx_edges(G_nx, pos, **options)
 
