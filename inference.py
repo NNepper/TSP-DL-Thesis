@@ -1,8 +1,7 @@
 import pickle
 
-import torch
-
-from common.utils import
+from common.loss import *
+from common.utils import *
 from model.Graph2Graph import Graph2Graph
 
 if __name__ == '__main__':

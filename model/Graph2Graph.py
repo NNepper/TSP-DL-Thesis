@@ -1,13 +1,14 @@
 import torch
 import torch.nn as nn
 
-from torch_geometric.nn import GATConv, InnerProductDecoder
+from torch_geometric.nn import GATConv
+
 
 class DotDecoder(nn.Module):
     def __init__(self, graph_size):
         super().__init__()
-        self.softmax = nn.Softmax()
         self.graph_size = graph_size
+        self.softmax = nn.Softmax()
 
     def forward(self, x, edge_index):
         """
@@ -26,45 +27,36 @@ class DotDecoder(nn.Module):
         for i, x_batch in enumerate(torch.split(x, self.graph_size)):
             logit = x_batch @ x_batch.t()
             # Compute softmax over whole edges
-
-            pi[i, :] = self.softmax((x_batch @ x_batch.t()).view(self.graph_size * self.graph_size)).view(
+            pi[i, :] = self.softmax(logit.view(self.graph_size * self.graph_size)).view(
                 self.graph_size, self.graph_size)
         return pi
 
 
 class GNNEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, drop_rate=0.0):
+    def __init__(self, input_dim, hidden_dim, drop_rate=0.0, heads=3):
         super().__init__()
         self.dropout = drop_rate
-        self.gnn1 = GATConv(input_dim, hidden_dim, head=3)
-        self.gnn2 = GATConv(hidden_dim, hidden_dim, head=3)
-        self.gnn3 = GATConv(hidden_dim, hidden_dim, head=3)
-        self.gnn4 = GATConv(hidden_dim, hidden_dim, head=3)
+        self.gnn1 = GATConv(2, hidden_dim, heads=3, edge_dim=1)
+        self.gnn2 = GATConv(hidden_dim * heads, hidden_dim * heads, heads=3, edge_dim=1)
+
         self.activ = nn.ReLU()
 
-    def forward(self, x, edge_index):
-        x = self.gnn1(x, edge_index)
+    def forward(self, x, edge_index, edge_attributes):
+        x = self.gnn1(x, edge_index, edge_attributes)
         x = self.activ(x)
-
-        x = self.gnn2(x, edge_index)
+        x = self.gnn2(x, edge_index, edge_attributes)
         x = self.activ(x)
-
-        x = self.gnn3(x, edge_index)
-        x = self.activ(x)
-
-        x = self.gnn4(x, edge_index)
-        x = self.activ(x)
-
         return x
 
 
 class Graph2Graph(torch.nn.Module):
     def __init__(self, graph_size, hidden_dim=100):
         super().__init__()
-        self.encoder = GNNEncoder(graph_size + 2, hidden_dim)
-        self.decoder = InnerProductDecoder()
+        self.encoder = GNNEncoder(graph_size, hidden_dim)
 
-    def forward(self, x, edge_index):
-        z = self.encoder(x, edge_index)
-        pi = self.decoder(z, edge_index, sigmoid=True)
+        self.decoder = DotDecoder(graph_size)
+
+    def forward(self, x, edge_index, edge_attributes):
+        z = self.encoder(x, edge_index, edge_attributes)
+        pi = self.decoder(z, edge_index)
         return pi

@@ -13,16 +13,16 @@ PATH = "model_G2G_20"
 
 if __name__ == '__main__':
     # Data importing
-    with open('data/dataset_50_train.pkl', 'rb') as f:
+    with open('data/dataset_20_train.pkl', 'rb') as f:
         graphs, target, opt_length = pickle.load(f)
-        dataLoader = DataLoader(graphs, batch_size=64)
+        dataLoader = DataLoader(graphs, batch_size=128)
 
     # Model Initialization
-    model = Graph2Graph(graph_size=50, hidden_dim=256)
+    model = Graph2Graph(graph_size=20, hidden_dim=128)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: '{device}'")
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=.0001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=.001)
 
     plot_counter = 0
     for epoch in range(1, 500):
@@ -30,12 +30,15 @@ if __name__ == '__main__':
         for batch in tqdm.tqdm(dataLoader):
             optimizer.zero_grad()
 
-            X = torch.concat((batch.x, batch.coordinates), dim=1).to(torch.float32).to(device)
-            pi = model.forward(X, batch.edge_index)
+            X = batch.x.to(torch.float32)
+            edge_attr = batch.edge_attr.to(torch.float32)
+            edge_index = batch.edge_index
 
-            loss = cross_entropy_negative_sampling(pi, batch, 5).sum()
+            pi = model.forward(X, edge_index, edge_attr)
 
+            loss = cross_entropy_negative_sampling(pi, batch.y, 10).sum()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
             total_loss += loss.sum()
             total_examples += pi.numel()
@@ -45,4 +48,4 @@ if __name__ == '__main__':
         fig, axs = sample_draw_probs_graph(batch, pi)
         fig.savefig(f"{PATH}_GAT_{plot_counter}.png")
         plot_counter += 1
-    torch.save(model.state_dict, PATH)
+        torch.save(model.state_dict, PATH)

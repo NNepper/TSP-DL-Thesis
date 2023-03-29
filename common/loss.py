@@ -18,14 +18,14 @@ def cross_entropy_negative_sampling(batch_pi, batch_opt_tour, n_neg=5):
     for i, opt_tours in enumerate(batch_opt_tour):
         for j, u in enumerate(opt_tours):
             v = opt_tours[(j + 1) % len(opt_tours)]
-            loss[i] -= torch.log(batch_pi[i, u, v])
+            loss[i] -= torch.clamp(torch.log(batch_pi[i, u, v]), min=-100, max=100)
 
     # Compute the false edges term (neg_sampling)
     for i, opt_tours in enumerate(batch_opt_tour):
         for j, u in enumerate(opt_tours):
             for v in random.sample(range(0, len(opt_tours)), n_neg):
                 if v != opt_tours[(j + 1) % len(opt_tours)]:
-                    loss[i] -= torch.log(1 - batch_pi[i, u, v])
+                    loss[i] -= torch.clamp(torch.log(1 - batch_pi[i, u, v]), min=-100, max=100)
     return loss
 
 

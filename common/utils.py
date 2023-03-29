@@ -57,8 +57,8 @@ def draw_probs_graph(pyg_graph, probabilities, ax):
     graph_size = pyg_graph.x.shape[0]
 
     # draw nodes according to color and position attribute
-    G_nx = to_networkx(pyg_graph, node_attrs=["x", "coordinates"])
-    pos = nx.get_node_attributes(G_nx, "coordinates")
+    G_nx = to_networkx(pyg_graph, node_attrs=["x"])
+    pos = nx.get_node_attributes(G_nx, "x")
     nx.draw_networkx_nodes(
         G_nx, pos, ax=ax, node_size=100
     )
@@ -68,9 +68,10 @@ def draw_probs_graph(pyg_graph, probabilities, ax):
     )
 
     # set edges weights
-    edge_weights = {(u,v) : {"probability" : float(probabilities[u,v])} for u in range(graph_size) for v in range(graph_size)}
+    edge_weights = {(u, v): {"probability": float(probabilities[u, v])} for u in range(graph_size) for v in
+                    range(graph_size)}
     nx.set_edge_attributes(G_nx, edge_weights)
-    probabilities = nx.get_edge_attributes(G_nx,'probability').values()
+    probabilities = nx.get_edge_attributes(G_nx, 'probability').values()
     options = {
         "edge_color": probabilities,
         "width": 1,
@@ -79,6 +80,17 @@ def draw_probs_graph(pyg_graph, probabilities, ax):
     }
     nx.draw_networkx_edges(G_nx, pos, **options)
 
+    # draw optimum solution
+    edges_opt = [(pyg_graph.y[i], pyg_graph.y[(i + 1)]) for i in range(len(pyg_graph.y) - 1)] + [
+        (pyg_graph.y[-1], pyg_graph.y[0])]
+    nx.draw_networkx_edges(
+        G_nx,
+        pos,
+        edgelist=edges_opt,
+        width=3,
+        alpha=1,
+        edge_color="tab:red",
+    )
 
 def sample_draw_probs_graph(batch, preds):
     """
