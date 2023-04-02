@@ -27,13 +27,15 @@ class DotDecoder(nn.Module):
         for i, (x_batch, edge_idx_batch) in enumerate(zip(torch.split(x, self.graph_size), torch.split(edge_index,
                                                                                                        self.graph_size * (
                                                                                                                self.graph_size - 1),
-                                                                                                       dim=1))):
+                                                                                                       dim=1)
+                                                          )
+                                                      ):
             logit = x_batch @ x_batch.t()
 
             # Compute softmax normalized for each node
             pi[i, :, :] = softmax(
                 src=logit.view(self.graph_size * self.graph_size),
-                index=torch.arange(0, self.graph_size - 1).repeat(self.graph_size).to(torch.long)
+                index=torch.arange(0, self.graph_size).repeat(self.graph_size).to(torch.long)
             ).view(self.graph_size, self.graph_size)
         return pi
 
@@ -60,12 +62,14 @@ class GNNEncoder(nn.Module):
         super().__init__()
         self.dropout = drop_rate
         self.gnn = GATv2Conv(in_channels=2, out_channels=hidden_dim, heads=heads, edge_dim=1, jk="lstm",
-                             num_layers=layer_number)
-
+                             num_layers=layer_number, share_weight=True)
+        self.bnorm = nn.BatchNorm1d(hidden_dim * heads)
         self.activ = nn.ReLU()
 
     def forward(self, x, edge_index, edge_attributes):
         x = self.gnn(x, edge_index, edge_attributes)
+        x = self.bnorm(x)
+        x = self.activ(x)
         return x
 
 

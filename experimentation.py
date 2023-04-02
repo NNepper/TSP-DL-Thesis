@@ -11,7 +11,7 @@ from model.Graph2Graph import Graph2Graph
 
 # Argument
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised GNN model')
-parser.add_argument('--batch-size', type=int, default=32, help='input batch size for training (default: 1)')
+parser.add_argument('--batch-size', type=int, default=128, help='input batch size for training (default: 1)')
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 10)')
 parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
 parser.add_argument('--layer_size', type=int, default=256, help='number of unit per dense layer')
