@@ -1,3 +1,4 @@
+import argparse
 import pickle
 
 import torch
@@ -5,27 +6,37 @@ import tqdm
 from torch_geometric.loader import DataLoader
 
 from common.loss import cross_entropy_negative_sampling
-from common.utils import sample_draw_probs_graph
+from common.visualization import sample_draw_probs_graph
 from model.Graph2Graph import Graph2Graph
 
-PATH = "model_G2G_20"
+# Argument
+parser = argparse.ArgumentParser(description='TSP Solver using Supervised GNN model')
+parser.add_argument('--batch-size', type=int, default=32, help='input batch size for training (default: 1)')
+parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 10)')
+parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
+parser.add_argument('--layer_size', type=int, default=256, help='number of unit per dense layer')
+parser.add_argument('--layer_number', type=int, default=6, help='number of layer')
+parser.add_argument('--heads', type=int, default=4, help='number of Attention heads')
+parser.add_argument('--lr', type=float, default=.001, help='learning rate')
+parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 
+config = parser.parse_args()
+config.tuning = False
 
 if __name__ == '__main__':
     # Data importing
-    with open('data/dataset_20_train.pkl', 'rb') as f:
+    with open(f'data/dataset_{config.num_nodes}_train.pkl', 'rb') as f:
         graphs, target, opt_length = pickle.load(f)
-        dataLoader = DataLoader(graphs, batch_size=128)
+        dataLoader = DataLoader(graphs, batch_size=config.batch_size)
 
     # Model Initialization
-    model = Graph2Graph(graph_size=20, hidden_dim=128)
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Device: '{device}'")
+    model = Graph2Graph(graph_size=config.num_nodes, hidden_dim=config.layer_size, num_layers=config.layer_number,
+                        num_heads=config.heads)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
     plot_counter = 0
-    for epoch in range(1, 500):
+    for epoch in range(1, 100):
         total_loss = total_examples = prev_loss = 0
         for batch in tqdm.tqdm(dataLoader):
             optimizer.zero_grad()
@@ -46,6 +57,8 @@ if __name__ == '__main__':
             prev_loss = total_loss
         print(f"Epoch: {epoch:03d}, Loss: {total_loss / total_examples:.4f}")
         fig, axs = sample_draw_probs_graph(batch, pi)
-        fig.savefig(f"{PATH}_GAT_{plot_counter}.png")
+        fig.savefig(
+            f'{config.directory}/GAT_{config.num_nodes}_{config.layer_size}_{config.layer_number}_plot{plot_counter}.png')
         plot_counter += 1
-        torch.save(model.state_dict, PATH)
+        torch.save(model.state_dict,
+                   f'{config.directory}/GAT_{config.num_nodes}_{config.layer_size}_{config.layer_number}')

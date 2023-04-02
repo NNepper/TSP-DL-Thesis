@@ -1,5 +1,7 @@
 import pickle
 
+import tqdm
+
 from common.loss import *
 from common.utils import *
 from model.Graph2Graph import Graph2Graph
@@ -8,20 +10,14 @@ if __name__ == '__main__':
     # Data importing
     with open('data/dataset_10_test.pkl', 'rb') as f:
         graphs, target, opt_length = pickle.load(f)
-        dataLoader = DataLoader(graphs, batch_size=32)
 
-    # Model Initialization
-    model = Graph2Graph(graph_size=10, hidden_dim=100)
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Device: '{device}'")
+    # Model laoding from file
+    model = Graph2Graph(graph_size=10, hidden_dim=200)
+    model.load_state_dict("model_G2G_20_2")
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=.001)
-
-    plot_counter = 0
-    for batch in tqdm.tqdm(dataLoader):
+    for graph in tqdm.tqdm(dataLoader):
         total_loss = total_examples = prev_loss = 0
         for epoch in range(1, 100000):
-            optimizer.zero_grad()
 
             X = torch.concat((batch.x, batch.coordinates), dim=1).to(torch.float32).to(device)
             pi = model.forward(X, batch.edge_index)

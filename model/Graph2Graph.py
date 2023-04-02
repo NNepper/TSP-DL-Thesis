@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
 
-from torch_geometric.nn import GATConv
+from torch_geometric.nn import GATv2Conv
+from torch_geometric.utils import softmax
 
 
 class DotDecoder(nn.Module):
     def __init__(self, graph_size):
         super().__init__()
         self.graph_size = graph_size
-        self.softmax = nn.Softmax()
 
     def forward(self, x, edge_index):
         """
@@ -24,35 +24,55 @@ class DotDecoder(nn.Module):
         :return: A tensor of size (batch_size, graph_size, graph_size)
         """
         pi = torch.zeros(x.shape[0] // self.graph_size, self.graph_size, self.graph_size)
-        for i, x_batch in enumerate(torch.split(x, self.graph_size)):
+        for i, (x_batch, edge_idx_batch) in enumerate(zip(torch.split(x, self.graph_size), torch.split(edge_index,
+                                                                                                       self.graph_size * (
+                                                                                                               self.graph_size - 1),
+                                                                                                       dim=1))):
             logit = x_batch @ x_batch.t()
-            # Compute softmax over whole edges
-            pi[i, :] = self.softmax(logit.view(self.graph_size * self.graph_size)).view(
-                self.graph_size, self.graph_size)
+
+            # Compute softmax normalized for each node
+            pi[i, :, :] = softmax(
+                src=logit.view(self.graph_size * self.graph_size),
+                index=torch.arange(0, self.graph_size - 1).repeat(self.graph_size).to(torch.long)
+            ).view(self.graph_size, self.graph_size)
         return pi
 
 
+class ConvNetLayer(nn.Module):
+    def __init__(self, node_dim, edge_dim, output_dim):
+        super().__init__()
+        # Edge attention layers
+        self.lin1 = nn.Linear(edge_dim, output_dim)  # edge feature attention
+        self.lin2 = nn.Linear(node_dim, output_dim)  # origin feature attention
+        self.lin3 = nn.Linear(node_dim, output_dim)  # destination feature attention
+
+        # Embedding layers
+        self.lin4 = nn.Linear(node_dim, output_dim)  # origin node embedding
+        self.lin5 = nn.Linear(node_dim, output_dim)  # destination node embedding
+
+        self.activation = nn.ReLU()
+
+    def forward(self, x_node, x_edge, edge_index):
+        return
+
 class GNNEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, drop_rate=0.0, heads=3):
+    def __init__(self, hidden_dim, drop_rate=0.0, heads=4, layer_number=4):
         super().__init__()
         self.dropout = drop_rate
-        self.gnn1 = GATConv(2, hidden_dim, heads=3, edge_dim=1)
-        self.gnn2 = GATConv(hidden_dim * heads, hidden_dim * heads, heads=3, edge_dim=1)
+        self.gnn = GATv2Conv(in_channels=2, out_channels=hidden_dim, heads=heads, edge_dim=1, jk="lstm",
+                             num_layers=layer_number)
 
         self.activ = nn.ReLU()
 
     def forward(self, x, edge_index, edge_attributes):
-        x = self.gnn1(x, edge_index, edge_attributes)
-        x = self.activ(x)
-        x = self.gnn2(x, edge_index, edge_attributes)
-        x = self.activ(x)
+        x = self.gnn(x, edge_index, edge_attributes)
         return x
 
 
 class Graph2Graph(torch.nn.Module):
-    def __init__(self, graph_size, hidden_dim=100):
+    def __init__(self, graph_size, hidden_dim=100, num_layers=4, num_heads=1):
         super().__init__()
-        self.encoder = GNNEncoder(graph_size, hidden_dim)
+        self.encoder = GNNEncoder(hidden_dim, num_layers, num_heads)
 
         self.decoder = DotDecoder(graph_size)
 
