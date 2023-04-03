@@ -1,4 +1,5 @@
 import argparse
+import os
 import pickle
 
 import torch
@@ -10,9 +11,9 @@ from common.visualization import sample_draw_probs_graph
 from model.Graph2Graph import Graph2Graph
 
 # Argument
-parser = argparse.ArgumentParser(description='TSP Solver using Supervised GNN model')
-parser.add_argument('--batch-size', type=int, default=128, help='input batch size for training (default: 1)')
-parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 10)')
+parser = argparse.ArgumentParser(description='ShortestPath Solver using Supervised GNN model')
+parser.add_argument('--batch-size', type=int, default=64, help='input batch size for training (default: 64)')
+parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
 parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
 parser.add_argument('--layer_size', type=int, default=256, help='number of unit per dense layer')
 parser.add_argument('--layer_number', type=int, default=6, help='number of layer')
@@ -25,13 +26,17 @@ config.tuning = False
 
 if __name__ == '__main__':
     # Data importing
-    with open(f'data/dataset_{config.num_nodes}_train.pkl', 'rb') as f:
+    with open(f'data/PATH_dataset_{config.num_nodes}_train.pkl', 'rb') as f:
         graphs, target, opt_length = pickle.load(f)
         dataLoader = DataLoader(graphs, batch_size=config.batch_size)
 
     # Model Initialization
     model = Graph2Graph(graph_size=config.num_nodes, hidden_dim=config.layer_size, num_layers=config.layer_number,
                         num_heads=config.heads)
+    if os.path.exists(f'{config.directory}/GAT_{config.num_nodes}_{config.layer_size}_{config.layer_number}'):
+        model.load_state_dict(
+            torch.load(f'{config.directory}/GAT_{config.num_nodes}_{config.layer_size}_{config.layer_number}'))
+        print("model loaded !")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
@@ -60,5 +65,5 @@ if __name__ == '__main__':
         fig.savefig(
             f'{config.directory}/GAT_{config.num_nodes}_{config.layer_size}_{config.layer_number}_plot{plot_counter}.png')
         plot_counter += 1
-        torch.save(model.state_dict,
+        torch.save(model.state_dict(),
                    f'{config.directory}/GAT_{config.num_nodes}_{config.layer_size}_{config.layer_number}')

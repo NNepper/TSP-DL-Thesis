@@ -24,12 +24,9 @@ class DotDecoder(nn.Module):
         :return: A tensor of size (batch_size, graph_size, graph_size)
         """
         pi = torch.zeros(x.shape[0] // self.graph_size, self.graph_size, self.graph_size)
-        for i, (x_batch, edge_idx_batch) in enumerate(zip(torch.split(x, self.graph_size), torch.split(edge_index,
-                                                                                                       self.graph_size * (
-                                                                                                               self.graph_size - 1),
-                                                                                                       dim=1)
-                                                          )
-                                                      ):
+        batch = torch.split(x, self.graph_size)
+        edges = torch.split(edge_index, self.graph_size * (self.graph_size - 1), dim=1)
+        for i, (x_batch, edge_idx_batch) in enumerate(zip(batch, edges)):
             logit = x_batch @ x_batch.t()
 
             # Compute softmax normalized for each node
