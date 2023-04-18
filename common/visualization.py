@@ -75,7 +75,7 @@ def draw_probs_graph(pyg_graph, probabilities, ax):
         pos,
         edgelist=edges_opt,
         width=3,
-        alpha=1,
+        alpha=0.1,
         edge_color="tab:red",
     )
 

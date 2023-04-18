@@ -33,7 +33,7 @@ class DotDecoder(nn.Module):
             # Compute softmax normalized for each node
             pi[i, :, :] = softmax(
                 src=logit.view(self.graph_size * self.graph_size),
-                index=torch.arange(0, self.graph_size).repeat(self.graph_size).to(torch.long)
+                index=torch.Tensor([[i]*self.graph_size for i in range(self.graph_size)]).view(-1).long()
             ).view(self.graph_size, self.graph_size)
         return pi
 

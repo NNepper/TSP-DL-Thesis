@@ -12,20 +12,26 @@ def cross_entropy_negative_sampling(batch_pi, batch_opt_tour, n_neg=5):
     :param n_neg=5: Sample 5 negative edges for each edge in the optimal tour
     :return: The loss of each tour in the batch
     """
-    loss = torch.zeros(batch_pi.shape[0])
+    loss = torch.zeros(batch_pi.shape[0]).to(torch.float64)
 
     # Compute the true edges term
     for i, opt_tours in enumerate(batch_opt_tour):
+        # Forward tour
         for j, u in enumerate(opt_tours):
             v = opt_tours[(j + 1) % len(opt_tours)]
-            loss[i] -= torch.clamp(torch.log(batch_pi[i, u, v]), min=-100, max=100)
+            loss[i] -= torch.log(torch.clamp(batch_pi[i, u, v], min=1e-6))
+        # Backward tour
+        for j, u in enumerate(reversed(opt_tours)):
+            v = opt_tours[(j + 1) % len(opt_tours)]
+            loss[i] -= torch.log(torch.clamp(batch_pi[i, u, v], min=1e-6))
 
     # Compute the false edges term (neg_sampling)
     for i, opt_tours in enumerate(batch_opt_tour):
         for j, u in enumerate(opt_tours):
             for v in random.sample(range(0, len(opt_tours)), n_neg):
                 if v != opt_tours[(j + 1) % len(opt_tours)]:
-                    loss[i] -= torch.clamp(torch.log(1 - batch_pi[i, u, v]), min=-100, max=100)
+                    loss[i] -= torch.log(1 - torch.clamp(batch_pi[i, u, v], min=1e-6, max=1 - 1e-6))
+
     return loss
 
 
