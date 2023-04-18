@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from model.encoder import GNNEncoder
+from model.encoder import GATEncoder, PointNetEncoder
 from model.decoder import DotDecoder
 
 
@@ -24,13 +24,13 @@ class ConvNetLayer(nn.Module):
 
 
 class Graph2Graph(torch.nn.Module):
-    def __init__(self, graph_size, hidden_dim=100, num_layers=4, num_heads=1):
+    def __init__(self, graph_size, hidden_dim=100, num_layers=4):
         super().__init__()
-        self.encoder = GNNEncoder(hidden_dim, num_layers, num_heads)
+        self.encoder = PointNetEncoder(hidden_dim, num_layers)
 
         self.decoder = DotDecoder(graph_size)
 
-    def forward(self, x, edge_index, edge_attributes):
-        z = self.encoder(x, edge_index, edge_attributes)
+    def forward(self, x, edge_index):
+        z = self.encoder(x, edge_index)
         pi = self.decoder(z, edge_index)
         return pi

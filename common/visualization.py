@@ -29,6 +29,31 @@ def plot_performance(tour_lenghts: np.array):
     plt.ylabel("tour length")
     plt.show()
 
+def draw_tour_graph(ax, pyg_graph, tour, color="red"):
+    # draw nodes
+    G_nx = to_networkx(pyg_graph, node_attrs=["x"])
+    pos = nx.get_node_attributes(G_nx, "x")
+    nx.draw_networkx_nodes(
+        G_nx, pos, ax=ax, node_size=100
+    )
+    labels_pos = {k: (v + np.array([0, 0.03])) for k, v in pos.items()}
+    nx.draw_networkx_labels(
+        G_nx, labels_pos, ax=ax
+    )
+
+    # draw tour solution
+    edges_opt = [(int(tour[i]), int(tour[(i + 1)])) for i in range(len(tour)-1)] + [
+        (int(tour[-1]), int(tour[0]))]
+    nx.draw_networkx_edges(
+        G_nx,
+        pos,
+        ax=ax,
+        edgelist=edges_opt,
+        width=2,
+        alpha=1,
+        edge_color=color
+    )
+
 
 def draw_probs_graph(pyg_graph, probabilities, ax):
     """
@@ -94,3 +119,12 @@ def sample_draw_probs_graph(batch, preds):
     selected = random.randrange(len(batch))
     draw_probs_graph(batch[selected], preds[selected], ax)
     return fig, ax
+
+
+def draw_solution_graph(pyg_graph, predicted_tour):
+    fig, (ax1, ax2) = plt.subplots(2, figsize=(12,12))
+
+    draw_tour_graph(ax1, pyg_graph, predicted_tour, color="blue")
+    draw_tour_graph(ax2, pyg_graph, pyg_graph.y, color="red")
+
+    return fig

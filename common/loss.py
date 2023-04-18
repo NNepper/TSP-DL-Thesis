@@ -3,6 +3,14 @@ import random
 import torch
 
 
+def cross_entropy(probs, target):
+    loss = torch.zeros(1).double()
+    for i in range(len(target)):  # Batch size
+        for j in range(len(target[i])):  # Tour length
+            loss -= torch.log(probs[i, j, target[i][j]])
+    return loss
+
+
 def cross_entropy_negative_sampling(batch_pi, batch_opt_tour, n_neg=5):
     """
     The cross_entropy_negative_sampling function computes the cross entropy loss for a batch of tours.

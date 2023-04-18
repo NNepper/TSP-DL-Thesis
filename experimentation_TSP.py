@@ -11,32 +11,6 @@ from common.visualization import sample_draw_probs_graph
 from model.Graph2Graph import Graph2Graph
 
 
-def cross_entropy_negative_sampling(batch_pi, batch_opt_path, n_neg=5):
-    """
-    The cross_entropy_negative_sampling function computes the cross entropy loss for a batch of tours.
-
-    :param batch_pi: Compute the probability of each edge in the optimal tour
-    :param batch_opt_tour: Compute the true edges term
-    :param n_neg=5: Sample 5 negative edges for each edge in the optimal tour
-    :return: The loss of each tour in the batch
-    """
-    loss = torch.zeros(batch_pi.shape[0])
-
-    # Compute the true edges term
-    for i, opt_tours in enumerate(batch_opt_path):
-        for j, u in enumerate(opt_tours):
-            v = opt_tours[(j + 1) % len(opt_tours)]
-            loss[i] -= torch.clamp(torch.log(batch_pi[i, u, v]), min=-100, max=100)
-
-    # Compute the false edges term (neg_sampling)
-    for i, opt_tours in enumerate(batch_opt_path):
-        for j, u in enumerate(opt_tours):
-            for v in random.sample(range(0, len(opt_tours)), n_neg):
-                if v != opt_tours[(j + 1) % len(opt_tours)]:
-                    loss[i] -= torch.clamp(torch.log(1 - batch_pi[i, u, v]), min=-100, max=100)
-    return loss
-
-
 # Argument
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised GNN model')
 parser.add_argument('--batch-size', type=int, default=64, help='input batch size for training (default: 1)')
