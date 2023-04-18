@@ -9,18 +9,20 @@ from torch_geometric.loader import DataLoader
 
 from common.visualization import sample_draw_probs_graph
 from model.Graph2Graph import Graph2Graph
+
+
 from common.loss import cross_entropy_negative_sampling
 
 
 # Argument
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised GNN model')
-parser.add_argument('--batch_size', type=int, default=512, help='input batch size for training (default: 1)')
+parser.add_argument('--batch-size', type=int, default=64, help='input batch size for training (default: 1)')
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 10)')
 parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
-parser.add_argument('--layer_size', type=int, default=512, help='number of unit per dense layer')
+parser.add_argument('--layer_size', type=int, default=256, help='number of unit per dense layer')
 parser.add_argument('--layer_number', type=int, default=6, help='number of layer')
 parser.add_argument('--heads', type=int, default=4, help='number of Attention heads')
-parser.add_argument('--lr', type=float, default=.0001, help='learning rate')
+parser.add_argument('--lr', type=float, default=.001, help='learning rate')
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 
 config = parser.parse_args()
@@ -45,6 +47,7 @@ if __name__ == '__main__':
     for epoch in range(1, 100):
         total_loss = total_examples = prev_loss = 0
         for batch in tqdm.tqdm(dataLoader):
+            optimizer.zero_grad()
 
             X = batch.x.to(torch.float32)
             edge_attr = batch.edge_attr.to(torch.float32)

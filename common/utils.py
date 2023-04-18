@@ -2,6 +2,7 @@ from collections import deque
 
 import torch
 
+from torch_geometric.utils import to_networkx, unbatch
 
 def discounted_rewards(rewards, gamma):
     """
@@ -25,3 +26,12 @@ def discounted_rewards(rewards, gamma):
     return G
 
 
+def compute_optimality_gap(batch_graph, batch_pred_tour):
+    length = torch.zeros(batch_graph.num_graphs)
+    for i in range(batch_graph.num_graphs):
+        nx_graph = to_networkx(batch_graph[i], edge_attrs=["edge_attr"])
+        for j in range(batch_pred_tour.shape[1]):
+            u = int(batch_pred_tour[i,j])
+            v = int(batch_pred_tour[i, (j+1) % batch_pred_tour.shape[1]])
+            length += nx_graph[u][v]["edge_attr"]
+    return length
