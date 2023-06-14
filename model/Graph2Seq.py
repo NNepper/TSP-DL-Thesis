@@ -43,7 +43,7 @@ class Graph2Seq(nn.Module):
         # Pytorch Env
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    def forward(self, x, edge_index, edge_attributes, start):
+    def forward(self, x, edge_index, edge_attributes):
         batch_size = math.ceil(x.shape[0] / self.graph_size)
         tours = torch.zeros(batch_size, self.graph_size)
 
@@ -66,9 +66,8 @@ class Graph2Seq(nn.Module):
 
         # Decoding the Tour
         start_emb = torch.cat([nodes_emb[i, int(start[i])].unsqueeze(0) for i in range(batch_size)])
-        loss = torch.zeros(x.shape[0], self.graph_size)
         probs = torch.zeros(batch_size, self.graph_size, self.graph_size)
-        mask = torch.zeros(batch_size, self.graph_size)
+        mask = torch.zeros(batch_si>e, self.graph_size)
         for i in range(self.graph_size):
             output = self.decoder.forward(context_emb=context_emb, nodes_emb=nodes_emb, mask=mask)
 

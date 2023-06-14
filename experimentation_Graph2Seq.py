@@ -16,11 +16,11 @@ from model.Graph2Seq import Graph2Seq
 
 # Argument
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised Graph2Seq model')
-parser.add_argument('--batch-size', type=int, default=64, help='input batch size for training (default: 64)')
+parser.add_argument('--batch-size', type=int, default=512, help='input batch size for training (default: 64)')
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
 parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
 parser.add_argument('--enc_hid_dim', type=int, default=512, help='number of unit per dense layer')
-parser.add_argument('--enc_num_layers', type=int, default=6, help='number of layer')
+parser.add_argument('--enc_num_layers', type=int, default=4, help='number of layer')
 parser.add_argument('--enc_num_heads', type=int, default=8, help='number of Attention heads on Encoder')
 parser.add_argument('--dec_hid_dim', type=int, default=512, help='number of unit per dense layer')
 parser.add_argument('--dec_num_layers', type=int, default=6, help='number of layer')
@@ -56,6 +56,7 @@ if __name__ == '__main__':
 
     plot_counter = 0
     tours = []
+    model.train()
     for epoch in range(1, 100):
         total_loss = total_examples = prev_loss = 0
         for i, batch in tqdm.tqdm(enumerate(dataLoader)):
@@ -73,7 +74,7 @@ if __name__ == '__main__':
             optimizer.step()
 
             # report
-            total_loss += loss.sum()
+            total_loss += loss.sum().detach().cpu()
             for j in range(batch.num_graphs):
                 tours.append(tour[j, :].detach().cpu().numpy())
         if abs(total_loss - prev_loss) > 10e-6:

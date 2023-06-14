@@ -1,20 +1,20 @@
 import torch
 import torch.nn as nn
 
-from model.encoder import GNNEncoder
+from model.encoder import GATEncoder
 from model.decoder import DotDecoder
 
 import torch
 import torch.nn as nn
 
-from model.encoder import GNNEncoder
+from model.encoder import GATEncoder
 from model.decoder import DotDecoder
 
 
 class Graph2Graph(torch.nn.Module):
     def __init__(self, graph_size, hidden_dim=100, num_layers=4):
         super().__init__()
-        self.encoder = GNNEncoder(hidden_dim, num_layers)
+        self.encoder = GATEncoder(hidden_dim, num_layers)
 
         self.decoder = DotDecoder(graph_size)
 

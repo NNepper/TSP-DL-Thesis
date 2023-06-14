@@ -122,7 +122,10 @@ def sample_draw_probs_graph(batch, preds):
 
 
 def draw_solution_graph(pyg_graph, predicted_tour):
-    fig, (ax1, ax2) = plt.subplots(2, figsize=(12,12))
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10))
+
+    ax1.set_title("Predicted Tour")
+    ax2.set_title("Optimal Tour")
 
     draw_tour_graph(ax1, pyg_graph, predicted_tour, color="blue")
     draw_tour_graph(ax2, pyg_graph, pyg_graph.y, color="red")
