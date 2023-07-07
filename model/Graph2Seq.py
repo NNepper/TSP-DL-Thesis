@@ -4,9 +4,7 @@ import torch.nn.functional as F
 
 import math
 
-from common.loss import cross_entropy_negative_sampling
-
-from model.encoder import PointNetEncoder, GATEncoder
+from model.encoder import GATEncoder
 from model.decoder import MHADecoder
 
 class Graph2Seq(nn.Module):
@@ -65,9 +63,9 @@ class Graph2Seq(nn.Module):
         ], dim=1)
 
         # Decoding the Tour
-        start_emb = torch.cat([nodes_emb[i, int(start[i])].unsqueeze(0) for i in range(batch_size)])
+        start_emb = torch.zeros(batch_size, self.enc_hid_dim)
         probs = torch.zeros(batch_size, self.graph_size, self.graph_size)
-        mask = torch.zeros(batch_si>e, self.graph_size)
+        mask = torch.zeros(batch_size, self.graph_size)
         for i in range(self.graph_size):
             output = self.decoder.forward(context_emb=context_emb, nodes_emb=nodes_emb, mask=mask)
 
@@ -80,6 +78,8 @@ class Graph2Seq(nn.Module):
                 mask[j, dec_idx[j]] = 1.
                 tours[j, i] = dec_idx[j]
                 probs[j, i, :] = prob[j, :]
+                if (i == 0):
+                    start_emb[j, :] = nodes_emb[j, dec_idx[j], :]
 
             context_emb = torch.concat([
                 graph_emb,

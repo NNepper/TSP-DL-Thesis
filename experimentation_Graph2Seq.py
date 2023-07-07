@@ -33,7 +33,7 @@ config.tuning = False
 
 if __name__ == '__main__':
     # Data importing
-    with open(f'data/dataset_{config.num_nodes}_test.pkl', 'rb') as f:
+    with open(f'data/dataset_{config.num_nodes}_train.pkl', 'rb') as f:
         graphs, target, opt_length = pickle.load(f)
         dataLoader = DataLoader(graphs, batch_size=config.batch_size)
 
@@ -59,26 +59,24 @@ if __name__ == '__main__':
     model.train()
     for epoch in range(1, 100):
         total_loss = total_examples = prev_loss = 0
+        optimizer.zero_grad()
         for i, batch in tqdm.tqdm(enumerate(dataLoader)):
-            optimizer.zero_grad()
-
             x_batch = batch.x.float()
             edge_attr = batch.edge_attr.float()
             edge_index = batch.edge_index
 
-            probs, tour = model.forward(x_batch, edge_index, edge_attr, torch.zeros(config.batch_size))
-            loss = cross_entropy(probs, batch.y)
-
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
-            optimizer.step()
+            probs, tour = model.forward(x_batch, edge_index, edge_attr)
+            total_loss += cross_entropy(probs, batch.y).detach().cpu()
 
             # report
-            total_loss += loss.sum().detach().cpu()
             for j in range(batch.num_graphs):
                 tours.append(tour[j, :].detach().cpu().numpy())
-        if abs(total_loss - prev_loss) > 10e-6:
-            prev_loss = total_loss
+
+        # Backpropagation of the loss
+        total_loss /= config.batch_size
+        total_loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
+        optimizer.step()
 
         # Visualization
         print(f"Epoch: {epoch:03d}, Loss: {total_loss / math.ceil(len(graphs) / config.batch_size):.4f}")

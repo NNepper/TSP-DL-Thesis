@@ -55,7 +55,7 @@ def draw_tour_graph(ax, pyg_graph, tour, color="red"):
     )
 
 
-def draw_probs_graph(pyg_graph, probabilities, ax):
+def draw_probs_graph(pyg_graph, probabilities):
     """
     The draw_probs_graph function takes in a pyg_graph, probabilities, and an axis.
     It then draws the nodes of the graph according to their color and position attributes.
@@ -63,9 +63,10 @@ def draw_probs_graph(pyg_graph, probabilities, ax):
 
     :param pyg_graph: Draw the graph
     :param probabilities: Set the edge weights
-    :param ax: Plot the graph in a specific axis
     :return: A graph with the probabilities of each edge
     """
+    fig, ax = plt.subplots(figsize=(10, 10))
+
     graph_size = pyg_graph.x.shape[0]
 
     # draw nodes according to color and position attribute
@@ -103,6 +104,7 @@ def draw_probs_graph(pyg_graph, probabilities, ax):
         alpha=0.1,
         edge_color="tab:red",
     )
+    return fig, ax
 
 
 def sample_draw_probs_graph(batch, preds):
@@ -115,10 +117,8 @@ def sample_draw_probs_graph(batch, preds):
     :param preds: Plot the predictions on top of the actual values
     :return: A figure and an axis object
     """
-    fig, ax = plt.subplots()
     selected = random.randrange(len(batch))
-    draw_probs_graph(batch[selected], preds[selected], ax)
-    return fig, ax
+    return draw_probs_graph(batch[selected], preds[selected])
 
 
 def draw_solution_graph(pyg_graph, predicted_tour):

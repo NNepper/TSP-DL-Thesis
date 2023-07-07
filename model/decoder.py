@@ -4,7 +4,6 @@ import torch.nn.functional as F
 
 import math
 
-from torch_geometric.nn import GATv2Conv
 from torch_geometric.utils import softmax
 
 
