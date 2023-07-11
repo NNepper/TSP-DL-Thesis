@@ -17,6 +17,7 @@ from model.model import Graph2Seq
 
 # Argument
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised Graph2Seq model')
+parser.add_argument('--data', type=str, default='data/tsp20_ortools.txt', help='Path to data set')
 parser.add_argument('--batch-size', type=int, default=128, help='input batch size for training (default: 64)')
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
 parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
@@ -31,6 +32,14 @@ parser.add_argument('--directory', type=str, default="./results", help='path whe
 
 config = parser.parse_args()
 config.tuning = False
+
+# Check if GPU is available
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+    print(f"Using {torch.cuda.get_device_name()} for training.")
+else:
+    device = torch.device("cpu")
+    print("No GPU available, using CPU for training.")
 
 if __name__ == '__main__':
     # Data importing
@@ -56,7 +65,7 @@ if __name__ == '__main__':
         enc_num_layers=config.enc_num_layers,
         enc_num_head=config.enc_num_heads,
         graph_size=config.num_nodes,
-    )
+    ).to(device)
     if os.path.exists(f'{config.directory}/G2S_{config.num_nodes}'):
         model.load_state_dict(
             torch.load(f'{config.directory}/G2S_{config.num_nodes}'))
@@ -75,7 +84,7 @@ if __name__ == '__main__':
         t = tqdm(train_dataloader, desc=f'Epoch: {epoch}, LR: {config.lr}')
         for batch in t:
             # Get batch
-            x = batch["nodes"].float()
+            x = batch["nodes"].float().to(device)
 
             # Forward
             probs, tour = model.forward(x)
@@ -86,7 +95,7 @@ if __name__ == '__main__':
             loss.backward()
 
             # Report
-            total_loss += loss.detach().cpu()
+            total_loss += loss.detach().cpu().numpy()
             for j in range(config.batch_size):
                 tours.append(tour[j, :].detach().cpu().numpy())
 

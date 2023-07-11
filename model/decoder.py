@@ -1,43 +1,7 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-import math
-
-from torch_geometric.utils import softmax
 
 from model.layers import ScaledDotProductAttention
-
-class DotDecoder(nn.Module):
-    def __init__(self, graph_size):
-        super().__init__()
-        self.graph_size = graph_size
-
-    def forward(self, x, edge_index):
-        """
-        The forward function takes in a batch of node features and returns the
-        probability distribution over all possible edges. The probability is computed
-        by taking the softmax of the dot product between each pair of nodes. This is
-        equivalent to computing a similarity score for each pair, and then normalizing
-        the scores so that they sum to 1.
-
-        :param self: Access variables that belong to the class
-        :param x: Pass the node features to the forward function
-        :param edge_index: Construct the adjacency matrix
-        :return: A tensor of size (batch_size, graph_size, graph_size)
-        """
-        pi = torch.zeros(x.shape[0] // self.graph_size, self.graph_size, self.graph_size)
-        batch = torch.split(x, self.graph_size)
-        edges = torch.split(edge_index, self.graph_size * (self.graph_size - 1), dim=1)
-        for i, (x_batch, edge_idx_batch) in enumerate(zip(batch, edges)):
-            logit = x_batch @ x_batch.t()
-
-            # Compute softmax normalized for each node
-            pi[i, :, :] = softmax(
-                src=logit.view(self.graph_size * self.graph_size),
-                index=torch.Tensor([[i] * self.graph_size for i in range(self.graph_size)]).view(-1).long()
-            ).view(self.graph_size, self.graph_size)
-        return pi
 
 class MHADecoder(nn.Module):
     def __init__(self, embedding_dim, num_heads=8, drop_rate=0.0):

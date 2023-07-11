@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import math
-
 from model.encoder import MHAEncoder
 from model.decoder import MHADecoder
 
