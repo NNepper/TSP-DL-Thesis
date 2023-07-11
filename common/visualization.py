@@ -1,6 +1,5 @@
 import random
 
-import networkx as nx
 import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
@@ -29,81 +28,65 @@ def plot_performance(tour_lenghts: np.array):
     plt.ylabel("tour length")
     plt.show()
 
-def draw_tour_graph(ax, pyg_graph, tour, color="red"):
+def draw_tour_graph(ax, nodes, tour, color="red"):
     # draw nodes
-    G_nx = to_networkx(pyg_graph, node_attrs=["x"])
-    pos = nx.get_node_attributes(G_nx, "x")
-    nx.draw_networkx_nodes(
-        G_nx, pos, ax=ax, node_size=100
-    )
-    labels_pos = {k: (v + np.array([0, 0.03])) for k, v in pos.items()}
-    nx.draw_networkx_labels(
-        G_nx, labels_pos, ax=ax
-    )
+    for i in range(len(nodes)):
+        ax.scatter(nodes[i][0], nodes[i][1], s=100, color="blue")
+        ax.text(nodes[i][0], nodes[i][1] + 0.03, str(i), fontsize=10, ha="center")
 
     # draw tour solution
-    edges_opt = [(int(tour[i]), int(tour[(i + 1)])) for i in range(len(tour)-1)] + [
-        (int(tour[-1]), int(tour[0]))]
-    nx.draw_networkx_edges(
-        G_nx,
-        pos,
-        ax=ax,
-        edgelist=edges_opt,
-        width=2,
-        alpha=1,
-        edge_color=color
+    for i in range(len(tour)-1):
+        ax.plot(
+            [nodes[int(tour[i])][0], nodes[int(tour[i+1])][0]],
+            [nodes[int(tour[i])][1], nodes[int(tour[i+1])][1]],
+            color=color,
+            linewidth=2
+        )
+    ax.plot(
+        [nodes[int(tour[-1])][0], nodes[int(tour[0])][0]],
+        [nodes[int(tour[-1])][1], nodes[int(tour[0])][1]],
+        color=color,
+        linewidth=2
     )
 
 
-def draw_probs_graph(pyg_graph, probabilities):
+def draw_probs_graph(ax, graph, probabilities):
     """
-    The draw_probs_graph function takes in a pyg_graph, probabilities, and an axis.
-    It then draws the nodes of the graph according to their color and position attributes.
+    The draw_probs_graph function takes in a list of nodes, probabilities, and an axis.
+    It then draws the nodes of the graph according to their position attributes.
     The edges are drawn with weights corresponding to the probability values passed in.
 
-    :param pyg_graph: Draw the graph
+    :param nodes: List of nodes
     :param probabilities: Set the edge weights
     :return: A graph with the probabilities of each edge
     """
     fig, ax = plt.subplots(figsize=(10, 10))
 
-    graph_size = pyg_graph.x.shape[0]
+    nodes = graph["nodes"]
+    graph_size = len(nodes)
 
-    # draw nodes according to color and position attribute
-    G_nx = to_networkx(pyg_graph, node_attrs=["x"])
-    pos = nx.get_node_attributes(G_nx, "x")
-    nx.draw_networkx_nodes(
-        G_nx, pos, ax=ax, node_size=100
-    )
-    labels_pos = {k: (v + np.array([0, 0.03])) for k, v in pos.items()}
-    nx.draw_networkx_labels(
-        G_nx, labels_pos, ax=ax
-    )
+    # draw nodes according to position attribute
+    for i in range(graph_size):
+        ax.scatter(nodes[i][0], nodes[i][1], s=100, color="blue")
+        ax.text(nodes[i][0], nodes[i][1] + 0.03, str(i), fontsize=10, ha="center")
 
     # set edges weights
     edge_weights = {(u, v): {"probability": float(probabilities[u, v])} for u in range(graph_size) for v in
                     range(graph_size)}
-    nx.set_edge_attributes(G_nx, edge_weights)
-    probabilities = nx.get_edge_attributes(G_nx, 'probability').values()
-    options = {
-        "edge_color": probabilities,
-        "width": 1,
-        "edge_cmap": plt.cm.Blues,
-        "arrows": True,
-    }
-    nx.draw_networkx_edges(G_nx, pos, **options)
 
-    # draw optimum solution
-    edges_opt = [(pyg_graph.y[i], pyg_graph.y[(i + 1)]) for i in range(len(pyg_graph.y) - 1)] + [
-        (pyg_graph.y[-1], pyg_graph.y[0])]
-    nx.draw_networkx_edges(
-        G_nx,
-        pos,
-        edgelist=edges_opt,
-        width=3,
-        alpha=0.1,
-        edge_color="tab:red",
-    )
+    # draw edges with weights
+    for i in range(graph_size):
+        for j in range(i+1, graph_size):
+            if edge_weights.get((i, j)):
+                weight = edge_weights[(i, j)]["probability"]
+                ax.plot(
+                    [nodes[i][0], nodes[j][0]],
+                    [nodes[i][1], nodes[j][1]],
+                    linewidth=1,
+                    alpha=1,
+                    color=plt.cm.Blues(weight)
+                )
+
     return fig, ax
 
 
@@ -121,13 +104,13 @@ def sample_draw_probs_graph(batch, preds):
     return draw_probs_graph(batch[selected], preds[selected])
 
 
-def draw_solution_graph(pyg_graph, predicted_tour):
+def draw_solution_graph(graph, predicted_tour):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10))
 
     ax1.set_title("Predicted Tour")
     ax2.set_title("Optimal Tour")
 
-    draw_tour_graph(ax1, pyg_graph, predicted_tour, color="blue")
-    draw_tour_graph(ax2, pyg_graph, pyg_graph.y, color="red")
+    draw_tour_graph(ax1, graph["nodes"], predicted_tour, color="blue")
+    draw_tour_graph(ax2, graph["nodes"], graph["tour_nodes"], color="red")
 
     return fig

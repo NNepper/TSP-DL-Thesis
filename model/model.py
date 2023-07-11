@@ -44,17 +44,12 @@ class Graph2Seq(nn.Module):
         # Pytorch Env
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    def forward(self, x, edge_index, edge_attributes):
-        batch_size = math.ceil(x.shape[0] / self.graph_size)
+    def forward(self, x):
+        batch_size = x.shape[0]
         tours = torch.zeros(batch_size, self.graph_size)
 
-        # Chunk the input batch
-        x = torch.stack(
-            torch.chunk(x, chunks=batch_size, dim=0)
-        )
-
         # Encoding the Graph
-        nodes_emb = self.encoder.forward(x, edge_index, edge_attributes)
+        nodes_emb = self.encoder.forward(x)
 
         # Computing Graph embedding
         graph_emb = nodes_emb.mean(dim=1)

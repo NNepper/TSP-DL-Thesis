@@ -1,19 +1,14 @@
 import torch
 import torch.nn as nn
-from torch_geometric.nn import GATConv
 
 from model.layers import ScaledDotProductAttention, NodeWiseFeedForward
 
 class GATEncoder(nn.Module):
     def __init__(self, hidden_dim, drop_rate=0.0, num_layers=4, num_heads=4):
         super().__init__()
-        self.dropout = drop_rate
-        self.gnn = GATConv(in_channels=2, out_channels=hidden_dim // num_heads, heads=num_heads, edge_dim=1,
-                             num_layers=num_layers)
-
+        
     def forward(self, x, edge_index, edge_attr):
-        x = self.gnn(x, edge_index=edge_index, edge_attr=edge_attr)
-        return x
+        raise(NotImplementedError)
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, input_dim, num_heads=8, drop_rate=0.0):
@@ -29,7 +24,7 @@ class MultiHeadAttention(nn.Module):
 
         self.num_heads = num_heads
 
-    def forward(self, x, edge_index, edge_attributes, mask=None):
+    def forward(self, x, mask=None):
         num_nodes = x.shape[1]
         # input > [1, input_dim=2]
         q, k, v = self.linear_q(x), self.linear_k(x), self.linear_v(x)
@@ -68,13 +63,13 @@ class MHAEncoder(nn.Module):
             NodeWiseFeedForward(input_dim=embedding_dim, hidden_dim=ff_hidden_dim, output_dim=embedding_dim) for _ in range(num_layers)
         ])
 
-    def forward(self, x, edge_index, edge_attr):
+    def forward(self, x):
         # Initial embedding
         h = self.linear0(x)
 
         for i in range(self.num_layers):
             # Multi-Head Attention
-            h_mha = self.mha_layers[i](h, edge_index, edge_attr)
+            h_mha = self.mha_layers[i](h)
 
             # Batch Normalization
             h = (h_mha + h).transpose(1,2)
