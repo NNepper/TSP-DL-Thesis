@@ -3,11 +3,19 @@ import random
 import torch
 
 
-def cross_entropy(probs, target):
-    loss = torch.zeros(1).double()
-    for i in range(len(target)):  # Batch size
-        for j in range(len(target[i])):  # Tour length
-            loss -= torch.log(probs[i, j, target[i][j]])
+def cross_entropy(batch_pi, batch_opt_tour):
+    loss = torch.zeros(batch_pi.shape[0]).to(torch.float64)
+
+    # Compute the true edges term
+    for i, opt_tours in enumerate(batch_opt_tour):
+        # Forward tour
+        for j, u in enumerate(opt_tours):
+            v = opt_tours[(j + 1) % len(opt_tours)]
+            loss[i] -= torch.log(torch.clamp(batch_pi[i, u, v], min=1e-6))
+        # Backward tour
+        for j, u in enumerate(reversed(opt_tours)):
+            v = opt_tours[(j + 1) % len(opt_tours)]
+            loss[i] -= torch.log(torch.clamp(batch_pi[i, u, v], min=1e-6))
     return loss
 
 
@@ -40,6 +48,28 @@ def cross_entropy_negative_sampling(batch_pi, batch_opt_tour, n_neg=5):
                 if v != opt_tours[(j + 1) % len(opt_tours)]:
                     loss[i] -= torch.log(1 - torch.clamp(batch_pi[i, u, v], min=1e-6, max=1 - 1e-6))
 
+    return loss
+
+def cross_entropy_full(batch_pi, batch_opt_tour):
+    loss = torch.zeros(batch_pi.shape[0]).to(torch.float64)
+
+    # Compute the true edges term
+    for i, opt_tours in enumerate(batch_opt_tour):
+        # Forward tour
+        for j, u in enumerate(opt_tours):
+            v = opt_tours[(j + 1) % len(opt_tours)]
+            loss[i] -= torch.log(torch.clamp(batch_pi[i, u, v], min=1e-6))
+        # Backward tour
+        for j, u in enumerate(reversed(opt_tours)):
+            v = opt_tours[(j + 1) % len(opt_tours)]
+            loss[i] -= torch.log(torch.clamp(batch_pi[i, u, v], min=1e-6))
+
+    # Compute the false edges term (full)
+    for i, opt_tours in enumerate(batch_opt_tour):
+        for j, u in enumerate(opt_tours):
+            for v in range(len(opt_tours)):
+                if v != opt_tours[(j + 1) % len(opt_tours)]:
+                    loss[i] -= torch.log(1 - torch.clamp(batch_pi[i, u, v], min=1e-6, max=1 - 1e-6))
     return loss
 
 

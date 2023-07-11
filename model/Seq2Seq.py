@@ -6,7 +6,6 @@ import torch.nn.functional as F
 
 from gym_vrp.envs import TSPEnv
 
-
 class Encoder(nn.Module):
 
     def __init__(self, input_dim, hidden_dim, num_layers=1, bidirectional=False):

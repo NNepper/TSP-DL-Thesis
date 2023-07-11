@@ -4,37 +4,40 @@ import torch.nn.functional as F
 
 import math
 
-from model.encoder import GATEncoder
+from model.encoder import MHAEncoder
 from model.decoder import MHADecoder
 
 class Graph2Seq(nn.Module):
 
     def __init__(self,
                  graph_size : int,
-                 enc_num_layers: int,
                  enc_hid_dim : int,
+                 enc_emb_dim : int,
+                 enc_num_layers: int,
                  enc_num_head: int,
                  dec_num_layers : int,
-                 dec_hid_dim: int,
+                 dec_emb_dim: int,
                  dec_num_heads: int,
                  ):
         super().__init__()
+
         # Model
         self.graph_size = graph_size
         self.enc_num_layers = enc_num_layers
+        self.enc_emb_dim = enc_emb_dim
         self.enc_hid_dim = enc_hid_dim
         self.enc_num_heads = enc_num_head
         self.dec_num_layers = dec_num_layers
-        self.dec_hid_dim = dec_hid_dim
+        self.dec_emb_dim = dec_emb_dim
         self.dec_num_heads = dec_num_heads
-        self.encoder = GATEncoder(hidden_dim=enc_hid_dim, num_layers=enc_num_layers, num_heads=enc_num_head)
-        self.decoder = MHADecoder(embedding_dim=enc_hid_dim, num_heads=dec_num_heads)
+        self.encoder = MHAEncoder(embedding_dim=enc_emb_dim, ff_hidden_dim=enc_hid_dim, num_layers=self.enc_num_layers, num_heads=self.enc_num_heads)
+        self.decoder = MHADecoder(embedding_dim=dec_emb_dim, num_heads=dec_num_heads)
 
         # Initial token
-        self.token_1 = torch.empty(enc_hid_dim)
-        self.token_f = torch.empty(enc_hid_dim )
-        nn.init.uniform(self.token_1, a=0, b=1)
-        nn.init.uniform(self.token_f, a=0, b=1)
+        self.token_1 = torch.empty(enc_emb_dim)
+        self.token_f = torch.empty(enc_emb_dim)
+        nn.init.uniform_(self.token_1, a=0, b=1)
+        nn.init.uniform_(self.token_f, a=0, b=1)
         nn.Parameter(self.token_1)
         nn.Parameter(self.token_f)
 
@@ -45,12 +48,13 @@ class Graph2Seq(nn.Module):
         batch_size = math.ceil(x.shape[0] / self.graph_size)
         tours = torch.zeros(batch_size, self.graph_size)
 
-        # Encoding the Graph
-        nodes_emb = torch.cat(
-            torch.chunk(self.encoder.forward(x, edge_index, edge_attributes).unsqueeze(0),
-                        chunks=batch_size,
-                        dim=1)
+        # Chunk the input batch
+        x = torch.stack(
+            torch.chunk(x, chunks=batch_size, dim=0)
         )
+
+        # Encoding the Graph
+        nodes_emb = self.encoder.forward(x, edge_index, edge_attributes)
 
         # Computing Graph embedding
         graph_emb = nodes_emb.mean(dim=1)
@@ -58,12 +62,12 @@ class Graph2Seq(nn.Module):
         # Decoder Inputs
         context_emb = torch.concat([
             graph_emb,
-            self.token_1.repeat(batch_size).unsqueeze(0).view(batch_size, self.enc_hid_dim),
-            self.token_f.repeat(batch_size).unsqueeze(0).view(batch_size, self.enc_hid_dim)
+            self.token_1.repeat(batch_size).unsqueeze(0).view(batch_size, self.enc_emb_dim),
+            self.token_f.repeat(batch_size).unsqueeze(0).view(batch_size, self.enc_emb_dim)
         ], dim=1)
 
         # Decoding the Tour
-        start_emb = torch.zeros(batch_size, self.enc_hid_dim)
+        start_emb = torch.zeros(batch_size, self.enc_emb_dim)
         probs = torch.zeros(batch_size, self.graph_size, self.graph_size)
         mask = torch.zeros(batch_size, self.graph_size)
         for i in range(self.graph_size):

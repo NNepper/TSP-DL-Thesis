@@ -6,6 +6,7 @@ import math
 
 from torch_geometric.utils import softmax
 
+from model.layers import ScaledDotProductAttention
 
 class DotDecoder(nn.Module):
     def __init__(self, graph_size):
@@ -38,25 +39,14 @@ class DotDecoder(nn.Module):
             ).view(self.graph_size, self.graph_size)
         return pi
 
-
-class ScaledDotProductAttention(nn.Module):
-
-    def forward(self, query, key, value, mask=None):
-        dk = query.size()[-1]
-        scores = query.matmul(key.transpose(-2, -1)) / math.sqrt(dk)
-        if mask is not None:
-            mask = mask.unsqueeze(1).unsqueeze(2).repeat(1, key.shape[1], key.shape[2], 1)
-            scores = scores.masked_fill(mask == 1, -1e9)
-        attention = F.softmax(scores, dim=-1)
-        return attention.matmul(value)
-
-
 class MHADecoder(nn.Module):
-    def __init__(self, embedding_dim, num_heads=8):
+    def __init__(self, embedding_dim, num_heads=8, drop_rate=0.0):
         super().__init__()
-        self.linear_q = nn.Linear(3 * embedding_dim, embedding_dim)  # Query (from context)
-        self.linear_k = nn.Linear(embedding_dim, embedding_dim)  # Key (from nodes emb)
-        self.linear_v = nn.Linear(embedding_dim, embedding_dim)  # Value (from nodes emb)
+        self.dropout = drop_rate
+    
+        self.linear_q = nn.Linear(3 * embedding_dim, embedding_dim)  # Query (Context embedding)
+        self.linear_k = nn.Linear(embedding_dim, embedding_dim)      # Key (Nodes embedding)
+        self.linear_v = nn.Linear(embedding_dim, embedding_dim)      # Value (Nodes embedding)
         self.linear_o = nn.Linear(embedding_dim, 1)
 
         self.tanh = nn.Tanh()
@@ -73,15 +63,18 @@ class MHADecoder(nn.Module):
             .repeat(1, num_nodes, 1)\
             .reshape(q.shape[0], self.num_heads, num_nodes, q.shape[1] // self.num_heads)
         k = k.reshape(k.shape[0], self.num_heads, num_nodes, k.shape[2] // self.num_heads) # (batch_size, num_heads, graph_size, emb_per_heads)
-        v = v.reshape(v.shape[0], self.num_heads, num_nodes, v.shape[2] // self.num_heads) # (batch_size, num_heads, graph_size)
+        v = v.reshape(v.shape[0], self.num_heads, num_nodes, v.shape[2] // self.num_heads) # (batch_size, num_heads, graph_size, emb_per_heads)
 
         y = ScaledDotProductAttention()(q, k, v, mask)
         y = y.reshape(y.shape[0], y.shape[2], self.num_heads * y.shape[3])
         y = self.linear_o(y).squeeze()
 
-        # Masking
+        # Clipping within [-10, 10]
+        y = 10 * self.tanh(y)
+
+        # Masking 
         y = y.masked_fill(mask == 1, -1e9)
 
-        # Softmax using scaling
-        y = self.softmax(10 * self.tanh(y))
+        # Softmax 
+        y = self.softmax(y)      
         return y
