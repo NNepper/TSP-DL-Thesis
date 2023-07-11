@@ -82,7 +82,7 @@ class TSPDataset(Dataset):
             self.tour_nodes = []
 
             print('\nLoading from {}...'.format(filename))
-            for line in tqdm.tqdm(open(filename, "r").readlines()[offset:offset+num_samples], ascii=True):
+            for line in open(filename, "r").readlines()[offset:offset+num_samples]:
                 line = line.split(" ")
                 num_nodes = int(line.index('output')//2)
                 self.nodes_coords.append(

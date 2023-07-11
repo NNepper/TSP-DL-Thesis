@@ -81,8 +81,7 @@ if __name__ == '__main__':
     for epoch in range(1, 100):
         total_loss = total_examples = prev_loss = 0
         optimizer.zero_grad()
-        t = tqdm(train_dataloader, desc=f'Epoch: {epoch}, LR: {config.lr}')
-        for batch in t:
+        for batch in train_dataloader:
             # Get batch
             x = batch["nodes"].float().to(device)
 
@@ -97,19 +96,15 @@ if __name__ == '__main__':
             # Report
             total_loss += loss.detach().cpu().numpy()
             for j in range(config.batch_size):
-                tours.append(tour[j, :].detach().cpu().numpy())
+                tours.append(tour[j, :].detach().cpu().numpy())    
 
-            # Get current learning rate
-            current_lr = optimizer.param_groups[0]['lr']
-    
-            # Update tqdm description with current learning rate
-            t.set_description(f"Epoch {epoch}, LR: {current_lr:.6f}")
-
-            scheduler.step(loss)
             optimizer.step()
+
+        # LR Scheduler
+        scheduler.step(total_loss / (math.ceil(len(train_dataset) / config.batch_size)))
         
         # Visualization
-        print(f"Epoch: {epoch:03d}, Loss: {total_loss / (math.ceil(len(train_dataset) / config.batch_size)):.4f}")
+        print(f"Epoch: {epoch:03d}, Loss: {total_loss / (math.ceil(len(train_dataset) / config.batch_size)):.4f}, LR: {optimizer.param_groups[0]['lr']}")
         selected = random.randrange(len(train_dataset))
         fig = draw_solution_graph(train_dataset[selected], tours[selected])
         fig.savefig(

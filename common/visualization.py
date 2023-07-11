@@ -1,18 +1,16 @@
 import random
 
 import numpy as np
-import seaborn as sns
 from matplotlib import pyplot as plt
-from torch_geometric.utils import to_networkx
 
 
 def correlation_weight_distance(edges_probabilities, edges_distances):
     edges_correlation = np.correlate(edges_probabilities, edges_distances)
-    sns.set_theme(style="ticks")
-    f, ax = plt.subplots(figsize=(7, 5))
-    sns.despine(f)
-
-    sns.histplot(edges_correlation)
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.tick_params(axis='both', which='both', length=0)
+    ax.hist(edges_correlation, alpha=0.7, edgecolor='black', color='gray')
 
 
 def plot_performance(tour_lenghts: np.array):
