@@ -18,6 +18,7 @@ class Graph2Seq(nn.Module):
                  dec_num_heads: int,
                  ):
         super().__init__()
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         # Model
         self.graph_size = graph_size
@@ -32,15 +33,12 @@ class Graph2Seq(nn.Module):
         self.decoder = MHADecoder(embedding_dim=dec_emb_dim, num_heads=dec_num_heads)
 
         # Initial token
-        self.token_1 = torch.empty(enc_emb_dim)
-        self.token_f = torch.empty(enc_emb_dim)
+        self.token_1 = torch.empty(enc_emb_dim).to(self.device)
+        self.token_f = torch.empty(enc_emb_dim).to(self.device)
         nn.init.uniform_(self.token_1, a=0, b=1)
         nn.init.uniform_(self.token_f, a=0, b=1)
         nn.Parameter(self.token_1)
         nn.Parameter(self.token_f)
-
-        # Pytorch Env
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def forward(self, x):
         batch_size = x.shape[0]
@@ -60,9 +58,9 @@ class Graph2Seq(nn.Module):
         ], dim=1)
 
         # Decoding the Tour
-        start_emb = torch.zeros(batch_size, self.enc_emb_dim)
-        probs = torch.zeros(batch_size, self.graph_size, self.graph_size)
-        mask = torch.zeros(batch_size, self.graph_size)
+        start_emb = torch.zeros(batch_size, self.enc_emb_dim).to(self.device)
+        probs = torch.zeros(batch_size, self.graph_size, self.graph_size).to(self.device)
+        mask = torch.zeros(batch_size, self.graph_size).to(self.device)
         for i in range(self.graph_size):
             output = self.decoder.forward(context_emb=context_emb, nodes_emb=nodes_emb, mask=mask)
 
