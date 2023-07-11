@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=GraphTransformer
-#SBATCH --output=graph_transformer%j.out
-#SBATCH --error=graph_transformer-%j.err
+#SBATCH --job-name=NS
+#SBATCH --output=ns-%j.out
+#SBATCH --error=ns-%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4

@@ -4,7 +4,7 @@ import torch
 
 
 def cross_entropy(batch_pi, batch_opt_tour):
-    loss = torch.zeros(batch_pi.shape[0]).to(torch.float64)
+    loss = torch.zeros(batch_pi.shape[0]).float().to("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Compute the true edges term
     for i, opt_tours in enumerate(batch_opt_tour):
@@ -28,7 +28,7 @@ def cross_entropy_negative_sampling(batch_pi, batch_opt_tour, n_neg=5):
     :param n_neg=5: Sample 5 negative edges for each edge in the optimal tour
     :return: The loss of each tour in the batch
     """
-    loss = torch.zeros(batch_pi.shape[0]).to(torch.float64)
+    loss = torch.zeros(batch_pi.shape[0]).float().to("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Compute the true edges term
     for i, opt_tours in enumerate(batch_opt_tour):
@@ -51,7 +51,7 @@ def cross_entropy_negative_sampling(batch_pi, batch_opt_tour, n_neg=5):
     return loss
 
 def cross_entropy_full(batch_pi, batch_opt_tour):
-    loss = torch.zeros(batch_pi.shape[0]).to(torch.float64)
+    loss = torch.zeros(batch_pi.shape[0]).float().to("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Compute the true edges term
     for i, opt_tours in enumerate(batch_opt_tour):

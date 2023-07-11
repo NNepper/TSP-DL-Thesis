@@ -1,71 +1,115 @@
 import argparse
 import os
-import pickle
 import random
 
 import torch
-import tqdm
-from torch_geometric.loader import DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau;
+from torch.utils.data import DataLoader
 
-from common.visualization import sample_draw_probs_graph, draw_probs_graph
-from model.Graph2Graph import Graph2Graph
+import math
+import numpy as np
 
-
-from common.loss import cross_entropy_negative_sampling, cross_entropy
-
+from common.loss import cross_entropy, cross_entropy_negative_sampling, cross_entropy_full
+from common.visualization import sample_draw_probs_graph, draw_solution_graph
+from data.dataset import TSPDataset
+from model.model import Graph2Seq
 
 # Argument
-parser = argparse.ArgumentParser(description='TSP Solver using Supervised GNN model')
-parser.add_argument('--batch-size', type=int, default=128, help='input batch size for training (default: 1)')
-parser.add_argument('--num_nodes', type=int, default=10, help='number fo nodes in the graphs (default: 10)')
-parser.add_argument('--epochs', type=int, default=10000, help='number of epochs to train (default: 100)')
-parser.add_argument('--layer_size', type=int, default=256, help='number of unit per dense layer')
-parser.add_argument('--layer_number', type=int, default=3, help='number of layer')
-parser.add_argument('--heads', type=int, default=1, help='number of Attention heads')
-parser.add_argument('--lr', type=float, default=.0001, help='learning rate')
-parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
+parser = argparse.ArgumentParser(description='TSP Solver using Supervised Graph2Seq model')
+parser.add_argument('--data', type=str, default='data/tsp20_ortools.txt', help='Path to data set')
+parser.add_argument('--batch-size', type=int, default=128, help='input batch size for training (default: 64)')
+parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
+parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
+parser.add_argument('--emb_dim', type=int, default=128, help='Size of the embedding vector (default: 128)')
+parser.add_argument('--enc_hid_dim', type=int, default=512, help='number of unit per dense layer in the Node-Wise Feed-Forward Network (default: 512))')
+parser.add_argument('--enc_num_layers', type=int, default=4, help='number of layer')
+parser.add_argument('--enc_num_heads', type=int, default=4, help='number of Attention heads on Encoder')
+parser.add_argument('--dec_num_layers', type=int, default=6, help='number of layer')
+parser.add_argument('--dec_num_heads', type=int, default=4, help='number of Attention heads on Decoder')
+parser.add_argument('--lr', type=float, default=.001, help='learning rate')
+parser.add_argument('--directory', type=str, default="./results_full", help='path where model and plots will be saved')
 
 config = parser.parse_args()
 config.tuning = False
 
+# Check if GPU is available
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+    print(f"Using {torch.cuda.get_device_name()} for training.")
+else:
+    device = torch.device("cpu")
+    print("No GPU available, using CPU for training.")
+
 if __name__ == '__main__':
     # Data importing
-    with open(f'data/dataset_{config.num_nodes}_train.pkl', 'rb') as f:
-        graphs, target, opt_length = pickle.load(f)
-        graphs = [graphs[0]]
-        dataLoader = DataLoader(graphs, batch_size=1)
+    train_dataset = TSPDataset(
+        filename='data/tsp20_ortools.txt',
+        batch_size=config.batch_size,
+        num_samples=128000,
+        neighbors=-1,
+    )
+    train_dataloader = DataLoader(
+        train_dataset, 
+        batch_size=config.batch_size, 
+        shuffle=True
+    )
 
     # Model Initialization
-    model = Graph2Graph(graph_size=config.num_nodes, hidden_dim=config.layer_size, num_layers=config.layer_number)
-    # if os.path.exists(f'{config.directory}/GAT_{config.num_nodes}_{config.layer_size}_{config.layer_number}'):
-    #     model.load_state_dict(
-    #         torch.load(f'{config.directory}/GAT_{config.num_nodes}_{config.layer_size}_{config.layer_number}'))
-    #     print("model loaded !")
+    model = Graph2Seq(
+        dec_emb_dim=config.emb_dim,
+        dec_num_layers=config.dec_num_layers,
+        dec_num_heads=config.dec_num_heads,
+        enc_emb_dim=config.emb_dim,
+        enc_hid_dim=config.enc_hid_dim,
+        enc_num_layers=config.enc_num_layers,
+        enc_num_head=config.enc_num_heads,
+        graph_size=config.num_nodes,
+    ).to(device)
+    if os.path.exists(f'{config.directory}/G2S_{config.num_nodes}'):
+        model.load_state_dict(
+            torch.load(f'{config.directory}/G2S_{config.num_nodes}'))
+        print("model loaded !")
 
+    # Optimizer and LR Scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+    scheduler = ReduceLROnPlateau(optimizer, 'min')
 
     plot_counter = 0
-    for epoch in range(1, config.epochs):
-        for i, batch in enumerate(tqdm.tqdm(dataLoader, disable=True)):
-            optimizer.zero_grad()
+    tours = []
+    model.train()
+    for epoch in range(1, 100):
+        total_loss = total_examples = prev_loss = 0
+        optimizer.zero_grad()
+        for batch in train_dataloader:
+            # Get batch
+            x = batch["nodes"].float().to(device)
 
-            X = batch.x.to(torch.float32)
-            edge_attr = batch.edge_attr.to(torch.float32)
-            edge_index = batch.edge_index
+            # Forward
+            probs, tour = model.forward(x)
+            loss = cross_entropy_full(probs, batch["tour_nodes"], 5).sum() / config.batch_size
 
-            pi = model.forward(X, edge_index, edge_attr)
-
-            loss = cross_entropy_negative_sampling(pi, batch.y, 3).sum()
-
-            optimizer.zero_grad()
+            # Backpropagation
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
             loss.backward()
-            optimizer.step()
-            torch.nn.utils.clip_grad_norm_(parameters=model.parameters(), max_norm=10, norm_type=2.0)
 
-            print(f"Epoch: {epoch:03d}, Loss: {loss:.4f}")
-            fig, axs = sample_draw_probs_graph(batch, pi)
-            fig.savefig(
-                f'{config.directory}/GAT_{config.num_nodes}_{config.layer_size}_{config.layer_number}_plot{plot_counter}.png')
-            plot_counter += 1
-            torch.save(model.state_dict(),
-                    f'{config.directory}/GAT_{config.num_nodes}_{config.layer_size}_{config.layer_number}')
+            # Report
+            total_loss += loss.detach().cpu().numpy()
+            for j in range(config.batch_size):
+                tours.append(tour[j, :].detach().cpu().numpy())    
+
+            optimizer.step()
+
+        # LR Scheduler
+        scheduler.step(total_loss / (math.ceil(len(train_dataset) / config.batch_size)))
+        
+        # Visualization
+        print(f"Epoch: {epoch:03d}, Loss: {total_loss / (math.ceil(len(train_dataset) / config.batch_size)):.4f}, LR: {optimizer.param_groups[0]['lr']}")
+        selected = random.randrange(len(train_dataset))
+        fig = draw_solution_graph(train_dataset[selected], tours[selected])
+        fig.savefig(
+            f'{config.directory}/G2S_{config.num_nodes}_plot{plot_counter}.png')
+        plot_counter += 1
+
+        # Model checkpoint
+        torch.save(model.state_dict(),
+                   f'{config.directory}/G2S_{config.num_nodes}')

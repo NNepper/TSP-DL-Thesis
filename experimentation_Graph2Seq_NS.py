@@ -27,7 +27,7 @@ parser.add_argument('--enc_num_heads', type=int, default=4, help='number of Atte
 parser.add_argument('--dec_num_layers', type=int, default=6, help='number of layer')
 parser.add_argument('--dec_num_heads', type=int, default=4, help='number of Attention heads on Decoder')
 parser.add_argument('--lr', type=float, default=.001, help='learning rate')
-parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
+parser.add_argument('--directory', type=str, default="./results_ns", help='path where model and plots will be saved')
 
 config = parser.parse_args()
 config.tuning = False
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     plot_counter = 0
     tours = []
     model.train()
-    for epoch in range(1, 100):
+    for epoch in range(1, 1000):
         total_loss = total_examples = prev_loss = 0
         optimizer.zero_grad()
         for batch in train_dataloader:
