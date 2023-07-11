@@ -1,10 +1,8 @@
 import torch 
 from torch.utils.data import Dataset
 
-import tqdm 
 import numpy as np
 
-from sklearn.utils import shuffle
 from scipy.spatial.distance import pdist, squareform
 
 def nearest_neighbor_graph(nodes, neighbors, knn_strat):
