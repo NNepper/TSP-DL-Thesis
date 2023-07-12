@@ -59,8 +59,8 @@ def get_optimal_route(distances):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_nodes", type=int, default=20)
-    parser.add_argument("--num_samples", type=int, default=1280)
-    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--num_samples", type=int, default=200)
+    parser.add_argument("--batch_size", type=int, default=200)
     parser.add_argument("--filename", type=str, default=None)
     parser.add_argument("--seed", type=int, default=1234)
     opts = parser.parse_args()

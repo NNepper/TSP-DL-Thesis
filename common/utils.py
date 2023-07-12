@@ -2,7 +2,24 @@ from collections import deque
 
 import torch
 
-from torch_geometric.utils import to_networkx, unbatch
+from data.dataset import TSPDataset
+from torch.utils.data import DataLoader
+
+
+def load_dataset(filename, neighbors, batch_size=1, workers=4):    
+    dataset = TSPDataset(
+        filename=filename,
+        batch_size=batch_size,
+        neighbors=neighbors,
+    )
+    dataloader = DataLoader(
+        dataset, 
+        batch_size=batch_size, 
+        shuffle=True,
+        num_workers=workers,
+    )
+    return dataset, dataloader
+
 
 def discounted_rewards(rewards, gamma):
     """
