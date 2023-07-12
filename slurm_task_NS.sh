@@ -5,9 +5,9 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=16G
+#SBATCH --mem=64G
 #SBATCH --time=24:00:00
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:4
 #SBATCH --partition=gpu
 
 # Load the required modules
@@ -18,4 +18,4 @@ module load matplotlib/3.3.3-foss-2020b
 module load SciPy-bundle/2020.11-fosscuda-2020b
 module load scikit-learn/0.23.2-fosscuda-2020b
 
-python /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/experimentation_Graph2Seq_NS.py
+python /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/experimentation_Graph2Seq.py --loss negative_sampling --n_gpu 4
