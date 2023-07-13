@@ -77,8 +77,6 @@ class Graph2Seq(nn.Module):
             # Find probabilities
             prob = F.softmax(output, dim=1)
             dec_idx = prob.argmax(1)
-            print("dec_idx:", dec_idx.device)
-
             # Prepare input for next timestep
             for j in range(batch_size):
                 mask[j, dec_idx[j]] = 1.
@@ -93,4 +91,5 @@ class Graph2Seq(nn.Module):
                 nodes_emb[torch.arange(batch_size), dec_idx, :]
             ], dim=1)
 
+        print("Done decoding!")
         return probs, tours
