@@ -51,7 +51,7 @@ class Graph2Seq(nn.Module):
 
         # Encoding the Graph
         nodes_emb = self.encoder.forward(x)
-        print(f"nodes_emb: {nodeS_emb.device}")
+        print(f"nodes_emb: {nodes_emb.device}")
 
         # Computing Graph embedding
         graph_emb = nodes_emb.mean(dim=1)
@@ -66,10 +66,13 @@ class Graph2Seq(nn.Module):
 
         # Decoding the Tour
         start_emb = torch.zeros(batch_size, self.enc_emb_dim).to(x.device)
+        print(f"start_emb: {start_emb.device}")
         probs = torch.zeros(batch_size, self.graph_size, self.graph_size).to(x.device)
+        print(f"probs: {probs.device}")
         mask = torch.zeros(batch_size, self.graph_size).to(x.device)
         for i in range(self.graph_size):
             output = self.decoder.forward(context_emb=context_emb, nodes_emb=nodes_emb, mask=mask)
+            print(f"output_dec: {output.device}")
 
             # Find probabilities
             prob = F.softmax(output, dim=1)

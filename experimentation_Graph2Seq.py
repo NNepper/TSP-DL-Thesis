@@ -84,6 +84,7 @@ if __name__ == '__main__':
         for i, (graph, solution) in enumerate(train_dataloader):
             optimizer.zero_grad()
             with torch.cuda.amp.autocast():
+                print(f"graph: {graph.device}")
                 probs, outputs = model(graph)
                 loss = criterion(probs, solution).mean()
 
