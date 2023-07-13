@@ -20,14 +20,13 @@ from model.model import Graph2Seq
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised Graph2Seq model')
 parser.add_argument('--data_train', type=str, default='data/tsp20_train.txt', help='Path to training dataset')
 parser.add_argument('--data_test', type=str, default='data/tsp20_val.txt', help='Path to validation dataset')
-parser.add_argument('--batch_size', type=int, default=128, help='input batch size for training (default: 64)')
+parser.add_argument('--batch_size', type=int, default=512, help='input batch size for training (default: 64)')
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
 parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
-parser.add_argument('--emb_dim', type=int, default=128, help='Size of the embedding vector (default: 128)')
+parser.add_argument('--emb_dim', type=int, default=256, help='Size of the embedding vector (default: 128)')
 parser.add_argument('--enc_hid_dim', type=int, default=512, help='number of unit per dense layer in the Node-Wise Feed-Forward Network (default: 512))')
 parser.add_argument('--enc_num_layers', type=int, default=4, help='number of layer')
 parser.add_argument('--enc_num_heads', type=int, default=4, help='number of Attention heads on Encoder')
-parser.add_argument('--dec_num_layers', type=int, default=6, help='number of layer')
 parser.add_argument('--dec_num_heads', type=int, default=4, help='number of Attention heads on Decoder')
 parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (default: .1)')
 parser.add_argument('--lr', type=float, default=.001, help='learning rate')
@@ -71,9 +70,9 @@ if __name__ == '__main__':
 
     # Data importing
     train_dataset = TSPDataset(config.data_train, config.num_nodes)
-    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.n_gpu)
+    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, num_workers=8)
     test_dataset = TSPDataset(config.data_test, config.num_nodes)
-    test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.n_gpu)
+    test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, num_workers=8)
 
     # Training loop
     scaler = GradScaler()
@@ -85,13 +84,10 @@ if __name__ == '__main__':
             graph = graph.cuda()
             solution = solution.cuda()
             optimizer.zero_grad()
-            with torch.cuda.amp.autocast():
-                probs, outputs = model(graph)
-                loss = criterion(probs, solution).mean()
 
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
+            probs, outputs = model(graph)
+            loss = criterion(probs, solution).mean()
+            loss.backward()
 
             train_loss += loss.item()
 

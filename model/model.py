@@ -13,7 +13,6 @@ class Graph2Seq(nn.Module):
                  enc_emb_dim : int,
                  enc_num_layers: int,
                  enc_num_head: int,
-                 dec_num_layers : int,
                  dec_emb_dim: int,
                  dec_num_heads: int
                  ):
@@ -25,7 +24,6 @@ class Graph2Seq(nn.Module):
         self.enc_emb_dim = enc_emb_dim
         self.enc_hid_dim = enc_hid_dim
         self.enc_num_heads = enc_num_head
-        self.dec_num_layers = dec_num_layers
         self.dec_emb_dim = dec_emb_dim
         self.dec_num_heads = dec_num_heads
         self.encoder = MHAEncoder(embedding_dim=enc_emb_dim, ff_hidden_dim=enc_hid_dim, num_layers=self.enc_num_layers, num_heads=self.enc_num_heads)
