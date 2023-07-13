@@ -75,11 +75,15 @@ if __name__ == '__main__':
 
     # Training loop
     scaler = GradScaler()
+    print("model", model.device)
     for epoch in range(config.epochs):
         model.train()
         test_loss = train_loss = 0
         tours = []
         for i, (graph, solution) in enumerate(train_dataloader):
+            graph = graph.to(model.device)
+            solution = solution.to(model.device)
+
             print("graph shape:", graph.shape)
             print("solution shape:", solution.shape)
             optimizer.zero_grad()
