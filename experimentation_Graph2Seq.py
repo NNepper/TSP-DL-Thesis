@@ -83,6 +83,8 @@ if __name__ == '__main__':
         test_loss = train_loss = 0
         tours = []
         for i, (graph, solution) in enumerate(train_dataloader):
+            graph = graph.cuda()
+            solution = solution.cuda()
             print("graph shape:", graph.shape)
             print("solution shape:", solution.shape)
             optimizer.zero_grad()
@@ -107,7 +109,7 @@ if __name__ == '__main__':
                 outputs = model(graph)
                 probs = outputs[0]
                 tour = outputs[1]
-                
+
                 loss = criterion(probs, solution).mean()
                 test_loss += loss.item()
 
