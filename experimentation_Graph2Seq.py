@@ -75,7 +75,6 @@ if __name__ == '__main__':
     test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, num_workers=8)
 
     # Training loop
-    scaler = GradScaler()
     for epoch in range(config.epochs):
         model.train()
         test_loss = train_loss = 0
