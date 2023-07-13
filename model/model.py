@@ -92,4 +92,4 @@ class Graph2Seq(nn.Module):
             ], dim=1)
 
         print("Done decoding!")
-        return probs, tours
+        return torch.concat([probs, tours])

@@ -104,7 +104,10 @@ if __name__ == '__main__':
         model.eval()
         with torch.no_grad():
             for i, (graph, solution) in enumerate(test_dataloader):
-                probs, outputs = model(graph)
+                outputs = model(graph)
+                probs = outputs[0]
+                tour = outputs[1]
+                
                 loss = criterion(probs, solution).mean()
                 test_loss += loss.item()
 
