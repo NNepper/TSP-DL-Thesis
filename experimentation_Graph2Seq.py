@@ -83,8 +83,8 @@ if __name__ == '__main__':
         test_loss = train_loss = 0
         tours = []
         for i, (graph, solution) in enumerate(train_dataloader):
-            graph = graph.to(device)
-            solution = solution.to(device)
+            graph = graph.cuda()
+            solution = solution.cuda()
 
             print("graph shape:", graph.shape)
             print("solution shape:", solution.shape)
