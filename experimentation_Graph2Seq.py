@@ -77,7 +77,6 @@ if __name__ == '__main__':
 
     # Training loop
     scaler = GradScaler()
-    print("model", model.device_ids)
     for epoch in range(config.epochs):
         model.train()
         test_loss = train_loss = 0
@@ -85,16 +84,12 @@ if __name__ == '__main__':
         for i, (graph, solution) in enumerate(train_dataloader):
             graph = graph.cuda()
             solution = solution.cuda()
-            print("graph shape:", graph.shape)
-            print("solution shape:", solution.shape)
             optimizer.zero_grad()
             with torch.cuda.amp.autocast():
-                print(f"graph: {graph.device}")
                 probs, outputs = model(graph)
                 loss = criterion(probs, solution).mean()
 
             scaler.scale(loss).backward()
-            print("backward pass", i)
             scaler.step(optimizer)
             scaler.update()
 
