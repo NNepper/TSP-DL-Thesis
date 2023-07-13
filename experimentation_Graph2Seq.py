@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
     # Data importing
     train_dataset = TSPDataset(config.data_train, config.num_nodes)
-    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, num_workers=8)
+    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.n_gpu)
     test_dataset = TSPDataset(config.data_test, config.num_nodes)
     test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, num_workers=8)
 
