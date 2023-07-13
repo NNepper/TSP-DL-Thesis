@@ -11,9 +11,8 @@ class GATEncoder(nn.Module):
         raise(NotImplementedError)
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, input_dim, num_heads=8, drop_rate=0.0):
+    def __init__(self, input_dim, num_heads=8):
         super().__init__()
-        self.dropout = drop_rate
     
         self.linear_q = nn.Linear(input_dim, input_dim)  # Query
         self.linear_k = nn.Linear(input_dim, input_dim)  # Key 
@@ -40,9 +39,8 @@ class MultiHeadAttention(nn.Module):
 
 
 class MHAEncoder(nn.Module):
-    def __init__(self, embedding_dim=128, ff_hidden_dim=512, drop_rate=0.0, num_layers=4, num_heads=4):
+    def __init__(self, embedding_dim=128, ff_hidden_dim=512, num_layers=4, num_heads=4, drop_rate=0.0):
         super().__init__()
-        self.dropout = drop_rate
         self.num_layers = num_layers
 
         # Initial embedding
@@ -55,7 +53,7 @@ class MHAEncoder(nn.Module):
 
         # Multi-Head Attention Layers
         self.mha_layers = nn.ModuleList([
-            MultiHeadAttention(embedding_dim, num_heads, drop_rate) for _ in range(num_layers)
+            MultiHeadAttention(embedding_dim, num_heads) for _ in range(num_layers)
         ])
 
         # (Sub) Node-wise Feed Forward Layers

@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=NS
-#SBATCH --output=result_full_j/ns-%j.out
-#SBATCH --error=result_full_j/ns-%j.err
+#SBATCH --job-name=FULL
+#SBATCH --output=full-%j.out
+#SBATCH --error=full-%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
@@ -21,4 +21,4 @@ module load SciPy-bundle/2020.11-fosscuda-2020b
 module load scikit-learn/0.23.2-fosscuda-2020b
 
 mkdir results_full_$SLURM_JOB_ID
-python /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/experimentation_Graph2Seq.py --loss full --directory results_full_$SLURM_JOB_ID --train_data /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/data/tsp20_train.txt --val_data /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/data/tsp20_val.txt --n_gpu 2 > results_full_$SLURM_JOB_ID/out.txt
+python /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/experimentation_Graph2Seq.py --loss full --directory results_full_$SLURM_JOB_ID --data_train /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/data/tsp20_train.txt --data_test /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/data/tsp20_val.txt --n_gpu 2 > results_full_$SLURM_JOB_ID/out.txt

@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=NS
-#SBATCH --output=result_vanilla_j/ns-%j.out
-#SBATCH --error=result_vanilla_j/ns-%j.err
+#SBATCH --job-name=Vanilla
+#SBATCH --output=vanilla-%j.out
+#SBATCH --error=vanilla-%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4

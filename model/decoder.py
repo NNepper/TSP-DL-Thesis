@@ -4,9 +4,8 @@ import torch.nn as nn
 from model.layers import ScaledDotProductAttention
 
 class MHADecoder(nn.Module):
-    def __init__(self, embedding_dim, num_heads=8, drop_rate=0.0):
+    def __init__(self, embedding_dim, num_heads=8):
         super().__init__()
-        self.dropout = drop_rate
     
         self.linear_q = nn.Linear(3 * embedding_dim, embedding_dim)  # Query (Context embedding)
         self.linear_k = nn.Linear(embedding_dim, embedding_dim)      # Key (Nodes embedding)
@@ -37,7 +36,7 @@ class MHADecoder(nn.Module):
         y = 10 * self.tanh(y)
 
         # Masking 
-        y = y.masked_fill(mask == 1, -1e9)
+        y = y.masked_fill(mask == 1, float('-inf'))
 
         # Softmax 
         y = self.softmax(y)      

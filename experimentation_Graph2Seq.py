@@ -28,6 +28,7 @@ parser.add_argument('--enc_num_layers', type=int, default=4, help='number of lay
 parser.add_argument('--enc_num_heads', type=int, default=4, help='number of Attention heads on Encoder')
 parser.add_argument('--dec_num_layers', type=int, default=6, help='number of layer')
 parser.add_argument('--dec_num_heads', type=int, default=4, help='number of Attention heads on Decoder')
+parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (default: .1)')
 parser.add_argument('--lr', type=float, default=.001, help='learning rate')
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 parser.add_argument('--n_gpu', type=int, default=2, help='number of GPUs to use (default: 2)')
