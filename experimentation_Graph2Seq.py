@@ -41,10 +41,6 @@ config = parser.parse_args()
 # Check if GPU is available
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-# Initialize multi-GPU training
-if torch.cuda.device_count() > 1:
-    torch.distributed.init_process_group(backend='nccl', init_method='env://')
-
 if __name__ == '__main__':
     # Data importing
     train_dataset = TSPDataset(config.data_train, config.num_nodes)
@@ -64,8 +60,7 @@ if __name__ == '__main__':
     graph_size=config.num_nodes,
     )
     if torch.cuda.device_count() > 1:
-        model = DistributedDataParallel(model)  # Wrap the model with DataParallel
-
+        model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
@@ -89,6 +84,8 @@ if __name__ == '__main__':
         test_loss = train_loss = 0
         tours = []
         for i, (graph, solution) in enumerate(train_dataloader):
+            print("graph shape:", graph.shape)
+            print("solution shape:", solution.shape)
             optimizer.zero_grad()
             with torch.cuda.amp.autocast():
                 print(f"graph: {graph.device}")
