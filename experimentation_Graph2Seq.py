@@ -42,12 +42,6 @@ config = parser.parse_args()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 if __name__ == '__main__':
-    # Data importing
-    train_dataset = TSPDataset(config.data_train, config.num_nodes)
-    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.n_gpu)
-    test_dataset = TSPDataset(config.data_test, config.num_nodes)
-    test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.n_gpu)
-
     # Model definition
     model = Graph2Seq(
     dec_emb_dim=config.emb_dim,
@@ -75,6 +69,12 @@ if __name__ == '__main__':
         criterion = cross_entropy
     else:
         raise NotImplementedError(f"Loss function {config.loss} not implemented.")
+
+    # Data importing
+    train_dataset = TSPDataset(config.data_train, config.num_nodes)
+    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.n_gpu)
+    test_dataset = TSPDataset(config.data_test, config.num_nodes)
+    test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.n_gpu)
 
     # Training loop
     scaler = GradScaler()
