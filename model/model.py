@@ -44,8 +44,8 @@ class Graph2Seq(nn.Module):
         tours = torch.zeros(batch_size, self.graph_size)
 
         # Move initial token to same device as input
-        self.token_1.to(x.device)
-        self.token_f.to(x.device)
+        self.token_1 = self.token_1.to(x.device)
+        self.token_f = self.token_f.to(x.device)
         print(f"token_1: {self.token_1.device}")
         print(f"token_f: {self.token_f.device}")
 
