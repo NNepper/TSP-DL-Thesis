@@ -60,7 +60,6 @@ if __name__ == '__main__':
     enc_num_layers=config.enc_num_layers,
     enc_num_head=config.enc_num_heads,
     graph_size=config.num_nodes,
-    device=device,
     )   
     model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
 
@@ -80,15 +79,11 @@ if __name__ == '__main__':
 
     # Training loop
     scaler = GradScaler()
-    model.to(device)
     for epoch in range(config.epochs):
         model.train()
         test_loss = train_loss = 0
         tours = []
         for i, (graph, solution) in enumerate(train_dataloader):
-            graph = graph.to(device)
-            solution = solution.to(device)
-
             optimizer.zero_grad()
             with torch.cuda.amp.autocast():
                 probs, outputs = model(graph)
@@ -106,9 +101,6 @@ if __name__ == '__main__':
         model.eval()
         with torch.no_grad():
             for i, (graph, solution) in enumerate(test_dataloader):
-                graph = graph.to(device)
-                solution = solution.to(device)
-
                 probs, outputs = model(graph)
                 loss = criterion(probs, solution).mean()
                 test_loss += loss.item()
