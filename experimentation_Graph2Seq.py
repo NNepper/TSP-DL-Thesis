@@ -38,9 +38,6 @@ parser.add_argument('--seed', type=int, default=42, help='random seed (default: 
 
 config = parser.parse_args()
 
-# Check if GPU is available
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
 if __name__ == '__main__':
     # Model definition
     model = Graph2Seq(
@@ -78,16 +75,11 @@ if __name__ == '__main__':
 
     # Training loop
     scaler = GradScaler()
-    model.to(device)
-    print("device:", device)
     for epoch in range(config.epochs):
         model.train()
         test_loss = train_loss = 0
         tours = []
         for i, (graph, solution) in enumerate(train_dataloader):
-            graph.to(device)
-            solution.to(device)
-
             print("graph shape:", graph.shape)
             print("solution shape:", solution.shape)
             optimizer.zero_grad()
