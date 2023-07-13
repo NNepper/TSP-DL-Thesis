@@ -38,6 +38,8 @@ parser.add_argument('--seed', type=int, default=42, help='random seed (default: 
 
 config = parser.parse_args()
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 if __name__ == '__main__':
     # Model definition
     model = Graph2Seq(
@@ -50,8 +52,8 @@ if __name__ == '__main__':
     enc_num_head=config.enc_num_heads,
     graph_size=config.num_nodes,
     )
-    if torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
+    model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
+    model.to(device)
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
@@ -81,8 +83,8 @@ if __name__ == '__main__':
         test_loss = train_loss = 0
         tours = []
         for i, (graph, solution) in enumerate(train_dataloader):
-            graph = graph.to(model.device)
-            solution = solution.to(model.device)
+            graph = graph.to(device)
+            solution = solution.to(device)
 
             print("graph shape:", graph.shape)
             print("solution shape:", solution.shape)
