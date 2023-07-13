@@ -43,7 +43,6 @@ if __name__ == '__main__':
     # Model definition
     model = Graph2Seq(
     dec_emb_dim=config.emb_dim,
-    dec_num_layers=config.dec_num_layers,
     dec_num_heads=config.dec_num_heads,
     enc_emb_dim=config.emb_dim,
     enc_hid_dim=config.enc_hid_dim,
