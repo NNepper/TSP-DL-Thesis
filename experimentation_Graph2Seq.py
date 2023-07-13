@@ -38,10 +38,7 @@ parser.add_argument('--seed', type=int, default=42, help='random seed (default: 
 config = parser.parse_args()
 
 # Check if GPU is available
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-else:
-    device = torch.device("cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 if __name__ == '__main__':
     # Data importing
@@ -60,7 +57,7 @@ if __name__ == '__main__':
     enc_num_layers=config.enc_num_layers,
     enc_num_head=config.enc_num_heads,
     graph_size=config.num_nodes,
-    )   
+    )
     model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
 
     # Optimizer
@@ -79,6 +76,7 @@ if __name__ == '__main__':
 
     # Training loop
     scaler = GradScaler()
+    model.to(device)
     for epoch in range(config.epochs):
         model.train()
         test_loss = train_loss = 0

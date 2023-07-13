@@ -46,12 +46,16 @@ class Graph2Seq(nn.Module):
         # Move initial token to same device as input
         self.token_1.to(x.device)
         self.token_f.to(x.device)
+        print(f"token_1: {self.token_1.device}")
+        print(f"token_f: {self.token_f.device}")
 
         # Encoding the Graph
         nodes_emb = self.encoder.forward(x)
+        print(f"nodes_emb: {nodeS_emb.device}")
 
         # Computing Graph embedding
         graph_emb = nodes_emb.mean(dim=1)
+        print(f"graph_emb: {nodes_emb.device}")
 
         # Decoder Inputs
         context_emb = torch.concat([
