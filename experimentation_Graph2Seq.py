@@ -5,6 +5,7 @@ import random
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau;
 from torch.utils.data import DataLoader
+from torch.nn.parallel import DistributedDataParallel
 from torch.cuda.amp import GradScaler
 
 import math
@@ -40,6 +41,10 @@ config = parser.parse_args()
 # Check if GPU is available
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+# Initialize multi-GPU training
+if torch.cuda.device_count() > 1:
+    torch.distributed.init_process_group(backend='nccl', init_method='env://')
+
 if __name__ == '__main__':
     # Data importing
     train_dataset = TSPDataset(config.data_train, config.num_nodes)
@@ -58,7 +63,9 @@ if __name__ == '__main__':
     enc_num_head=config.enc_num_heads,
     graph_size=config.num_nodes,
     )
-    model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
+    if torch.cuda.device_count() > 1:
+        model = DistributedDataParallel(model)  # Wrap the model with DataParallel
+
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
