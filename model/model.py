@@ -77,6 +77,7 @@ class Graph2Seq(nn.Module):
             # Find probabilities
             prob = F.softmax(output, dim=1)
             dec_idx = prob.argmax(1)
+            print("dec_idx:", dec_idx.device)
 
             # Prepare input for next timestep
             for j in range(batch_size):
