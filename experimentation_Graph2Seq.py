@@ -92,6 +92,7 @@ if __name__ == '__main__':
                 loss = criterion(probs, solution).mean()
 
             scaler.scale(loss).backward()
+            print("backward pass", i)
             scaler.step(optimizer)
             scaler.update()
 
