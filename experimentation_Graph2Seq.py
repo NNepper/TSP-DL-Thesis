@@ -79,6 +79,7 @@ if __name__ == '__main__':
     # Training loop
     scaler = GradScaler()
     model.to(device)
+    print("device:", device)
     for epoch in range(config.epochs):
         model.train()
         test_loss = train_loss = 0
