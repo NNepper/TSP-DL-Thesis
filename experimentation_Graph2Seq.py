@@ -60,6 +60,7 @@ if __name__ == '__main__':
     enc_num_layers=config.enc_num_layers,
     enc_num_head=config.enc_num_heads,
     graph_size=config.num_nodes,
+    device=device,
     )   
     model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
 

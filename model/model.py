@@ -16,9 +16,10 @@ class Graph2Seq(nn.Module):
                  dec_num_layers : int,
                  dec_emb_dim: int,
                  dec_num_heads: int,
+                 device: str = "cpu",
                  ):
         super().__init__()
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = device
 
         # Model
         self.graph_size = graph_size
