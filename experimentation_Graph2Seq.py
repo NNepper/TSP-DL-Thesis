@@ -27,7 +27,7 @@ parser.add_argument('--emb_dim', type=int, default=512, help='Size of the embedd
 parser.add_argument('--enc_hid_dim', type=int, default=2048, help='number of unit per dense layer in the Node-Wise Feed-Forward Network (default: 2048))')
 parser.add_argument('--enc_num_layers', type=int, default=6, help='number of layer')
 parser.add_argument('--enc_num_heads', type=int, default=8, help='number of Attention heads on Encoder')
-parser.add_argument('--dec_num_heads', type=int, default=8, help='number of Attention heads on Decoder')
+parser.add_argument('--dec_num_heads', type=int, default=, help='number of Attention heads on Decoder')
 parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (default: .1)')
 parser.add_argument('--lr', type=float, default=.001, help='learning rate')
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
@@ -92,6 +92,7 @@ if __name__ == '__main__':
             train_loss += loss.item()
 
         train_loss /= len(train_dataloader)
+        scheduler.step(train_loss)
 
         # Validation
         model.eval()
@@ -109,20 +110,15 @@ if __name__ == '__main__':
                     tours.append(outputs[j].cpu().numpy())
 
             test_loss /= len(test_dataloader)
-            scheduler.step(test_loss)
-            test_loss = test_loss / len(test_dataloader)
-
-            scheduler.step(test_loss)
 
         # Save model
-        if (epoch + 1) % 10 == 0:
-            torch.save(model.module.state_dict(), os.path.join(config.directory, "model_" + (epoch + 1) + ".pt"))
+        torch.save(model.module.state_dict(), os.path.join(config.directory, "model_" + (epoch + 1) + ".pt"))
 
-            # Plot solution
-            selected = random.randrange(len(train_dataset))
-            fig = draw_solution_graph(train_dataset[selected], tours[selected])
-            fig.savefig(
-                config.directory + "/G2S_" + config.num_nodes + " _plot" + epoch + ".png")
+        # Plot solution
+        selected = random.randrange(len(train_dataset))
+        fig = draw_solution_graph(train_dataset[selected], tours[selected])
+        fig.savefig(
+            config.directory + "/G2S_" + config.num_nodes + " _plot" + str(epoch + 1) + ".png")
 
         # Print statistics
         print("Epoch:", epoch+1, "Train Loss:", train_loss, "Val Loss:", test_loss)
