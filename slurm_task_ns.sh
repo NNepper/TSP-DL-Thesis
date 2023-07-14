@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=FULL
-#SBATCH --output=full-%j.out
-#SBATCH --error=full-%j.err
+#SBATCH --job-name=ns
+#SBATCH --output=ns-%j.out
+#SBATCH --error=ns-%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
@@ -31,4 +31,4 @@ module load matplotlib
 mkdir -p "$LOCALSCRATCH/$SLURM_JOB_ID"
 mkdir -p "$HOME/$SLURM_JOB_ID"
 
-python /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/experimentation_Graph2Seq.py --loss full --directory $LOCALSCRATCH/$SLURM_JOB_ID --data_train  $HOME/TSP-DeepRL-Thesis/data/tsp20_train.txt --data_test $HOME/TSP-DeepRL-Thesis/data/tsp20_val.txt --n_gpu 1
+python /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/experimentation_Graph2Seq.py --loss negative_sampling --directory $LOCALSCRATCH/$SLURM_JOB_ID --data_train  $HOME/TSP-DeepRL-Thesis/data/tsp20_train.txt --data_test $HOME/TSP-DeepRL-Thesis/data/tsp20_val.txt --n_gpu 1
