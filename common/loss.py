@@ -4,7 +4,7 @@ import torch
 
 
 def cross_entropy(predictions, solutions):
-    loss = torch.zeros(predictions.shape[0]).float().to(predictions.device)
+    loss = torch.zeros(predictions.shape[0]).float().to(predictions.device, non_blocking=True)
 
     # Compute the true edges term
     for i, tour in enumerate(solutions):
@@ -28,7 +28,7 @@ def cross_entropy_negative_sampling(predictions, solutions, n_neg=5):
     :param n_neg=5: Sample 5 negative edges for each edge in the optimal tour
     :return: The loss of each tour in the batch
     """
-    loss = torch.zeros(predictions.shape[0]).float().to(predictions.device)
+    loss = torch.zeros(predictions.shape[0]).float().to(predictions.device, non_blocking=True)
 
     # Compute the true edges term
     for i, tour in enumerate(solutions):
@@ -51,7 +51,7 @@ def cross_entropy_negative_sampling(predictions, solutions, n_neg=5):
     return loss
 
 def cross_entropy_full(predictions, solutions):
-    loss = torch.zeros(predictions.shape[0]).float().to(predictions.device)
+    loss = torch.zeros(predictions.shape[0]).float().to(predictions.device, non_blocking=True)
 
     # Compute the true edges term
     for i, tour in enumerate(solutions):
