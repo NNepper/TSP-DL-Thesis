@@ -83,7 +83,8 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             graph = graph.to(device, non_blocking=True)
             solution = solution.to(device, non_blocking=True)
-	    probs, outputs = model(graph)
+            
+            probs, outputs = model(graph)
             loss = criterion(probs, solution).mean()
             loss.backward()
 
@@ -95,6 +96,9 @@ if __name__ == '__main__':
         model.eval()
         with torch.no_grad():
             for i, (graph, solution) in enumerate(test_dataloader):
+                graph = graph.to(device, non_blocking=True)
+                solution = solution.to(device, non_blocking=True)
+                
                 probs, tour = model(graph)
 
                 loss = criterion(probs, solution).mean()
