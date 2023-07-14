@@ -1,5 +1,4 @@
-#!/bin/bash
-#SBATCH --job-name=ns
+#SBATCH --job-name=NS
 #SBATCH --output=ns-%j.out
 #SBATCH --error=ns-%j.err
 #SBATCH --nodes=1
@@ -21,14 +20,21 @@ trap cleanup SIGTERM
 
 
 # Load the required modules
+# Load the required modules
+module --force purge
 module load releases/2022a
+module load PyTorch/1.12.1-foss-2022a-CUDA-11.7.0
 module load Python
-module load PyTorch
-module load SciPy-bundle
-module load scikit-learn 
 module load matplotlib
+module load SciPy-bundle
+module load scikit-learn
 
+# Prepare results folder
 mkdir -p "$LOCALSCRATCH/$SLURM_JOB_ID"
 mkdir -p "$HOME/$SLURM_JOB_ID"
+mkdir -p "$LOCALSCRATCH/$SLURM_JOB_ID/result"
 
-python /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/experimentation_Graph2Seq.py --loss negative_sampling --directory $LOCALSCRATCH/$SLURM_JOB_ID --data_train  $HOME/TSP-DeepRL-Thesis/data/tsp20_train.txt --data_test $HOME/TSP-DeepRL-Thesis/data/tsp20_val.txt --n_gpu 1
+# Move code and data to local scratch
+cp -r * "$LOCALSCRATCH/$SLURM_JOB_ID/"
+
+python $LOCALSCRATCH/$SLURM_JOB_ID/experimentation_Graph2Seq.py --enc_hid_dim 1024 --enc_num_heads 8  --num_nodes 50  --loss negative_sampling --directory $LOCALSCRATCH/$SLURM_JOB_ID/result --data_train  $LOCALSCRATCH/$SLURM_JOB_ID/data/tsp50_train.txt --data_test $LOCALSCRATCH/$SLURM_JOB_ID/data/tsp50_test.txt --n_gpu 1
