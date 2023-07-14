@@ -40,6 +40,7 @@ config = parser.parse_args()
 # pytorch Hardware parameters
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.set_num_threads(2*config.n_gpu)
+torch.backends.cudnn.benchmark = True
 
 if __name__ == '__main__':
     # Model definition
@@ -70,9 +71,9 @@ if __name__ == '__main__':
 
     # Data importing
     train_dataset = TSPDataset(config.data_train, config.num_nodes)
-    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=2*config.n_gpu)
+    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=config.n_gpu)
     test_dataset = TSPDataset(config.data_test, config.num_nodes)
-    test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=2*config.n_gpu)
+    test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=config.n_gpu)
 
     # Training loop
     for epoch in range(config.epochs):
