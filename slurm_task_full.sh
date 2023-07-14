@@ -12,6 +12,14 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=nathan.nepper@student.ucouvain.be
 
+# Define a function to run when the script is terminated
+function cleanup {
+    cp -r "$LOCALSCRATCH/$SLURM_JOB_ID/" "$HOME/$SLURM_JOB_ID" &&\
+    rm -rf "$LOCALSCRATCH/$SLURM_JOB_ID"
+}
+trap cleanup SIGTERM
+
+
 # Load the required modules
 module load Python/3.8.6-GCCcore-10.2.0
 module load root_numpy/4.8.0-foss-2020b-Python-3.8.6
@@ -20,5 +28,7 @@ module load matplotlib/3.3.3-foss-2020b
 module load SciPy-bundle/2020.11-fosscuda-2020b
 module load scikit-learn/0.23.2-fosscuda-2020b
 
-mkdir results_full_$SLURM_JOB_ID
-python /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/experimentation_Graph2Seq.py --loss full --directory results_full_$SLURM_JOB_ID --data_train /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/data/tsp20_train.txt --data_test /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/data/tsp20_val.txt --n_gpu 1
+mkdir -p "$LOCALSCRATCH/$SLURM_JOB_ID"
+mkdir -p "$HOME/$SLURM_JOB_ID"
+
+python /home/ucl/ingi/nnepper/TSP-DeepRL-Thesis/experimentation_Graph2Seq.py --loss full --directory $LOCALSCRATCH/$SLURM_JOB_ID --data_train  $HOME/TSP-DeepRL-Thesis/data/tsp20_train.txt --data_test $HOME/TSP-DeepRL-Thesis/data/tsp20_val.txt --n_gpu 1
