@@ -41,3 +41,21 @@ class MHADecoder(nn.Module):
         # Softmax 
         y = self.softmax(y)      
         return y
+    
+class TransformerDecoder(nn.Module):
+    def __init__(self, embedding_dim, num_heads=8):
+        super().__init__()
+    
+        self.linear_q = nn.Linear(3 * embedding_dim, embedding_dim)  # Query (Context embedding)
+        self.linear_k = nn.Linear(embedding_dim, embedding_dim)      # Key (Nodes embedding)
+        self.linear_v = nn.Linear(embedding_dim, embedding_dim)      # Value (Nodes embedding)
+        self.linear_o = nn.Linear(embedding_dim, 1)
+
+        self.tanh = nn.Tanh()
+        self.softmax = nn.Softmax(dim=1)
+
+        self.num_heads = num_heads
+
+    def forward(self, nodes_embs):
+        raise NotImplemented
+
