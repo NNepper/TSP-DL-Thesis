@@ -37,7 +37,9 @@ parser.add_argument('--seed', type=int, default=42, help='random seed (default: 
 
 config = parser.parse_args()
 
+# pytorch Hardware parameters
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+torch.set_num_threads(2*config.n_gpu)
 
 if __name__ == '__main__':
     # Model definition
@@ -51,8 +53,7 @@ if __name__ == '__main__':
     graph_size=config.num_nodes,
     )
     model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
-    model.to(device)
-
+    model = model.to(device, non_blocking=True)
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True)
@@ -65,13 +66,13 @@ if __name__ == '__main__':
     elif config.loss == 'vanilla':
         criterion = cross_entropy
     else:
-        raise NotImplementedError(f"Loss function {config.loss} not implemented.")
+        raise NotImplementedError
 
     # Data importing
     train_dataset = TSPDataset(config.data_train, config.num_nodes)
-    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.n_gpu)
+    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=2*config.n_gpu)
     test_dataset = TSPDataset(config.data_test, config.num_nodes)
-    test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, num_workers=8)
+    test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=2*config.n_gpu)
 
     # Training loop
     for epoch in range(config.epochs):
@@ -79,11 +80,10 @@ if __name__ == '__main__':
         test_loss = train_loss = 0
         tours = []
         for i, (graph, solution) in enumerate(train_dataloader):
-            graph = graph.cuda()
-            solution = solution.cuda()
             optimizer.zero_grad()
-
-            probs, outputs = model(graph)
+            graph = graph.to(device, non_blocking=True)
+            solution = solution.to(device, non_blocking=True)
+	    probs, outputs = model(graph)
             loss = criterion(probs, solution).mean()
             loss.backward()
 
@@ -111,13 +111,13 @@ if __name__ == '__main__':
 
         # Save model
         if (epoch + 1) % 10 == 0:
-            torch.save(model.module.state_dict(), os.path.join(config.directory, f"model_{epoch + 1}.pt"))
+            torch.save(model.module.state_dict(), os.path.join(config.directory, "model_" + (epoch + 1) + ".pt"))
 
             # Plot solution
             selected = random.randrange(len(train_dataset))
             fig = draw_solution_graph(train_dataset[selected], tours[selected])
             fig.savefig(
-                f'{config.directory}/G2S_{config.num_nodes}_plot{epoch}.png')
+                config.directory + "/G2S_" + config.num_nodes + " _plot" + epoch + ".png")
 
         # Print statistics
-        print(f"Epoch: {epoch+1:03d}, Train Loss: {train_loss:.4f}, Val Loss: {test_loss:.4f}")
+        print("Epoch:", epoch+1, "Train Loss:", train_loss, "Val Loss:", test_loss)
