@@ -27,7 +27,7 @@ parser.add_argument('--emb_dim', type=int, default=512, help='Size of the embedd
 parser.add_argument('--enc_hid_dim', type=int, default=2048, help='number of unit per dense layer in the Node-Wise Feed-Forward Network (default: 2048))')
 parser.add_argument('--enc_num_layers', type=int, default=6, help='number of layer')
 parser.add_argument('--enc_num_heads', type=int, default=8, help='number of Attention heads on Encoder')
-parser.add_argument('--dec_num_heads', type=int, default=, help='number of Attention heads on Decoder')
+parser.add_argument('--dec_num_heads', type=int, default=8, help='number of Attention heads on Decoder')
 parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (default: .1)')
 parser.add_argument('--lr', type=float, default=.001, help='learning rate')
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
