@@ -1,6 +1,7 @@
 import argparse
 import os
 import random
+import csv
 
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau;
@@ -8,30 +9,31 @@ from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel
 from torch.cuda.amp import GradScaler
 
-import math
 import numpy as np
 
+import matplotlib.pyplot as plt
+
 from common.loss import cross_entropy, cross_entropy_negative_sampling, cross_entropy_full
-from common.visualization import sample_draw_probs_graph, draw_solution_graph
+from common.visualization import draw_solution_graph
 from data.dataset import TSPDataset
 from model.model import Graph2Seq
 
 # Argument
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised Graph2Seq model')
 parser.add_argument('--data_train', type=str, default='data/tsp20_train.txt', help='Path to training dataset')
-parser.add_argument('--data_test', type=str, default='data/tsp20_val.txt', help='Path to validation dataset')
+parser.add_argument('--data_test', type=str, default='data/tsp20_test.txt', help='Path to validation dataset')
 parser.add_argument('--batch_size', type=int, default=512, help='input batch size for training (default: 64)')
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
-parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
+parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train (default: 100)')
 parser.add_argument('--emb_dim', type=int, default=512, help='Size of the embedding vector (default: 128)')
 parser.add_argument('--enc_hid_dim', type=int, default=2048, help='number of unit per dense layer in the Node-Wise Feed-Forward Network (default: 2048))')
 parser.add_argument('--enc_num_layers', type=int, default=6, help='number of layer')
 parser.add_argument('--enc_num_heads', type=int, default=8, help='number of Attention heads on Encoder')
 parser.add_argument('--dec_num_heads', type=int, default=8, help='number of Attention heads on Decoder')
 parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (default: .1)')
-parser.add_argument('--lr', type=float, default=.001, help='learning rate')
+parser.add_argument('--lr', type=float, default=.0001, help='learning rate')
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
-parser.add_argument('--n_gpu', type=int, default=2, help='number of GPUs to use (default: 2)')
+parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use (default: 2)')
 parser.add_argument('--loss', type=str, default='negative_sampling', help='loss function to use (default: negative_sampling)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
 
@@ -39,8 +41,15 @@ config = parser.parse_args()
 
 # pytorch Hardware parameters
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-torch.set_num_threads(2*config.n_gpu)
 torch.backends.cudnn.benchmark = True
+
+# Prepare metrics and results
+if not os.path.exists(config.directory):
+    os.makedirs(config.directory)
+    
+    with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["Epoch", "train_loss", "test_loss", "mean_grad_norm"])
 
 if __name__ == '__main__':
     # Model definition
@@ -55,8 +64,9 @@ if __name__ == '__main__':
     )
     model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
     model = model.to(device, non_blocking=True)
+
     # Optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True)
 
     # Loss function
@@ -73,13 +83,13 @@ if __name__ == '__main__':
     train_dataset = TSPDataset(config.data_train, config.num_nodes)
     train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=config.n_gpu)
     test_dataset = TSPDataset(config.data_test, config.num_nodes)
-    test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=config.n_gpu)
+    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False, pin_memory=True, num_workers=0)
 
     # Training loop
     for epoch in range(config.epochs):
         model.train()
-        test_loss = train_loss = 0
-        tours = []
+        train_loss = 0
+        grad_norm = torch.zeros(len(train_dataloader))
         for i, (graph, solution) in enumerate(train_dataloader):
             optimizer.zero_grad()
             graph = graph.to(device, non_blocking=True)
@@ -87,15 +97,22 @@ if __name__ == '__main__':
             
             probs, outputs = model(graph)
             loss = criterion(probs, solution).mean()
-            loss.backward()
-
             train_loss += loss.item()
 
+            loss.backward()
+            grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 3)
+        
+            optimizer.step()    # Apply the weight update
+
         train_loss /= len(train_dataloader)
+
         scheduler.step(train_loss)
 
         # Validation
         model.eval()
+        tours = []
+        test_loss = 0
+        selected_plot = random.randrange(len(test_dataloader))
         with torch.no_grad():
             for i, (graph, solution) in enumerate(test_dataloader):
                 graph = graph.to(device, non_blocking=True)
@@ -109,16 +126,19 @@ if __name__ == '__main__':
                 for j in range(len(outputs)):
                     tours.append(outputs[j].cpu().numpy())
 
+                # Plot the selected test graph
+                if i == selected_plot:
+                    fig = draw_solution_graph(graph.squeeze().detach().cpu().numpy(), solution.squeeze().detach().cpu().numpy(), tour.squeeze().detach().cpu().numpy())
+                    fig.savefig(
+                        config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch + 1) + ".png")
+
             test_loss /= len(test_dataloader)
 
         # Save model
-        torch.save(model.module.state_dict(), os.path.join(config.directory, "model_" + (epoch + 1) + ".pt"))
+        torch.save(model.module.state_dict(), os.path.join(config.directory, "model.pt"))
 
-        # Plot solution
-        selected = random.randrange(len(train_dataset))
-        fig = draw_solution_graph(train_dataset[selected], tours[selected])
-        fig.savefig(
-            config.directory + "/G2S_" + config.num_nodes + " _plot" + str(epoch + 1) + ".png")
-
-        # Print statistics
-        print("Epoch:", epoch+1, "Train Loss:", train_loss, "Val Loss:", test_loss)
+        # report metrics
+        print("Epoch:", str(epoch+1), "Train Loss:", np.round(train_loss, 3), "Val Loss:", np.round(test_loss, 3), "Mean Grad Norm:", np.round(grad_norm.mean().item(), 3))
+        with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([epoch+1, train_loss, test_loss, grad_norm.mean()])

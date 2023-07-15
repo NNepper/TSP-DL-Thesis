@@ -68,7 +68,6 @@ class TSPDataset(Dataset):
             self.nodes_coords = [] 
             self.tour_nodes = []
 
-            print('\nLoading from {}...'.format(filename))
             for line in open(filename, "r").readlines():
                 line = line.split(" ")
                 num_nodes = int(line.index('output')//2)

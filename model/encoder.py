@@ -23,6 +23,11 @@ class MultiHeadAttention(nn.Module):
 
         self.num_heads = num_heads
 
+        # Weight Initalization
+        nn.init.uniform_(self.linear_q.weight, a=0, b=1)
+        nn.init.uniform_(self.linear_k.weight, a=0, b=1)
+        nn.init.uniform_(self.linear_v.weight, a=0, b=1)
+
     def forward(self, x, mask=None):
         num_nodes = x.shape[1]
         # input > [1, input_dim=2]

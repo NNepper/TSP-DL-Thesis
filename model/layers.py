@@ -16,16 +16,18 @@ class ScaledDotProductAttention(nn.Module):
 
 
 class NodeWiseFeedForward(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim, drop_rate=0.0):
+    def __init__(self, input_dim, hidden_dim, output_dim):
         super().__init__()
-        self.dropout = nn.Dropout(drop_rate)
         self.linear1 = nn.Linear(input_dim, hidden_dim, bias=True)
         self.linear2 = nn.Linear(hidden_dim, output_dim, bias=True)
+
+        # initialize weights
+        nn.init.uniform_(self.linear1.weight, a=0, b=1)
+        nn.init.uniform_(self.linear2.weight, a=0, b=1)
 
     def forward(self, x):
         x = self.linear1(x)
         x = F.relu(x)
-        x = self.dropout(x)
         x = self.linear2(x)
         return x
 
