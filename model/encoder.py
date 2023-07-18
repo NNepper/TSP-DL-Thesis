@@ -23,6 +23,11 @@ class MultiHeadAttention(nn.Module):
 
         self.num_heads = num_heads
 
+        # Weight Initalization
+        nn.init.uniform_(self.linear_q.weight, a=0, b=1)
+        nn.init.uniform_(self.linear_k.weight, a=0, b=1)
+        nn.init.uniform_(self.linear_v.weight, a=0, b=1)
+
     def forward(self, x, mask=None):
         num_nodes = x.shape[1]
         # input > [1, input_dim=2]
@@ -61,6 +66,9 @@ class MHAEncoder(nn.Module):
             NodeWiseFeedForward(input_dim=embedding_dim, hidden_dim=ff_hidden_dim, output_dim=embedding_dim) for _ in range(num_layers)
         ])
 
+        # Dropout
+        self.dropout = nn.Dropout(drop_rate)
+
     def forward(self, x):
         # Initial embedding
         h = self.linear0(x)
@@ -68,6 +76,7 @@ class MHAEncoder(nn.Module):
         for i in range(self.num_layers):
             # Multi-Head Attention
             h_mha = self.mha_layers[i](h)
+            h_mha = self.dropout(h_mha)
 
             # Batch Normalization
             h = (h_mha + h).transpose(1,2)
@@ -76,6 +85,7 @@ class MHAEncoder(nn.Module):
 
             # Node-wise Feed Forward
             h_ff = self.ff_layers[i](h)
+            h_ff = self.dropout(h_ff)
 
             # Batch Normalization
             h = (h_ff + h).transpose(1,2)

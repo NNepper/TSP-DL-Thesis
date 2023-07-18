@@ -102,13 +102,13 @@ def sample_draw_probs_graph(batch, preds):
     return draw_probs_graph(batch[selected], preds[selected])
 
 
-def draw_solution_graph(graph, predicted_tour):
+def draw_solution_graph(graph, true_tour, predicted_tour):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10))
 
     ax1.set_title("Predicted Tour")
     ax2.set_title("Optimal Tour")
 
-    draw_tour_graph(ax1, graph["nodes"], predicted_tour, color="blue")
-    draw_tour_graph(ax2, graph["nodes"], graph["tour_nodes"], color="red")
+    draw_tour_graph(ax1, graph, predicted_tour, color="blue")
+    draw_tour_graph(ax2, graph, true_tour, color="red")
 
     return fig

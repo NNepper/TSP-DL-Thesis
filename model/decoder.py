@@ -17,6 +17,12 @@ class MHADecoder(nn.Module):
 
         self.num_heads = num_heads
 
+        # Weight Initalization
+        nn.init.uniform_(self.linear_q.weight, a=0, b=1)
+        nn.init.uniform_(self.linear_k.weight, a=0, b=1)
+        nn.init.uniform_(self.linear_v.weight, a=0, b=1)
+        nn.init.uniform_(self.linear_o.weight, a=0, b=1)
+
     def forward(self, context_emb, nodes_emb, mask=None):
         num_nodes = nodes_emb.shape[1]
         # input > [1, input_dim=2]
@@ -41,3 +47,27 @@ class MHADecoder(nn.Module):
         # Softmax 
         y = self.softmax(y)      
         return y
+    
+class TransformerDecoder(nn.Module):
+    def __init__(self, embedding_dim, num_heads=8):
+        super().__init__()
+    
+        self.linear_q = nn.Linear(3 * embedding_dim, embedding_dim)  # Query (Context embedding)
+        self.linear_k = nn.Linear(embedding_dim, embedding_dim)      # Key (Nodes embedding)
+        self.linear_v = nn.Linear(embedding_dim, embedding_dim)      # Value (Nodes embedding)
+        self.linear_o = nn.Linear(embedding_dim, 1)
+
+        self.tanh = nn.Tanh()
+        self.softmax = nn.Softmax(dim=1)
+
+        self.num_heads = num_heads
+
+        # Weight Initalization
+        nn.init.uniform_(self.linear_q.weight, a=0, b=1)
+        nn.init.uniform_(self.linear_k.weight, a=0, b=1)
+        nn.init.uniform_(self.linear_v.weight, a=0, b=1)
+        nn.init.uniform_(self.linear_o.weight, a=0, b=1)
+
+    def forward(self, nodes_embs):
+        raise NotImplemented
+

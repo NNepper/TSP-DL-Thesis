@@ -1,6 +1,6 @@
-#SBATCH --job-name=VANILLA
-#SBATCH --output=vanilla-%j.out
-#SBATCH --error=vanilla-%j.err
+#SBATCH --job-name=NS
+#SBATCH --output=ns-%j.out
+#SBATCH --error=ns-%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
@@ -37,4 +37,4 @@ mkdir -p "$LOCALSCRATCH/$SLURM_JOB_ID/result"
 # Move code and data to local scratch
 cp -r * "$LOCALSCRATCH/$SLURM_JOB_ID/"
 
-python $LOCALSCRATCH/$SLURM_JOB_ID/experimentation_Graph2Seq.py --enc_hid_dim 1024 --enc_num_heads 8  --num_nodes 50  --loss vanilla --directory $LOCALSCRATCH/$SLURM_JOB_ID/result --data_train  $LOCALSCRATCH/$SLURM_JOB_ID/data/tsp50_train.txt --data_test $LOCALSCRATCH/$SLURM_JOB_ID/data/tsp50_test.txt --n_gpu 1
+python $LOCALSCRATCH/$SLURM_JOB_ID/experimentation_Graph2Seq.py --enc_hid_dim 1024 --enc_num_heads 8  --num_nodes 50  --loss negative_sampling --directory $LOCALSCRATCH/$SLURM_JOB_ID/result --data_train  $LOCALSCRATCH/$SLURM_JOB_ID/data/tsp50_train.txt --data_test $LOCALSCRATCH/$SLURM_JOB_ID/data/tsp50_test.txt --n_gpu 1

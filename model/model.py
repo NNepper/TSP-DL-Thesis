@@ -13,7 +13,6 @@ class Graph2Seq(nn.Module):
                  enc_emb_dim : int,
                  enc_num_layers: int,
                  enc_num_head: int,
-                 dec_num_layers : int,
                  dec_emb_dim: int,
                  dec_num_heads: int
                  ):
@@ -25,15 +24,14 @@ class Graph2Seq(nn.Module):
         self.enc_emb_dim = enc_emb_dim
         self.enc_hid_dim = enc_hid_dim
         self.enc_num_heads = enc_num_head
-        self.dec_num_layers = dec_num_layers
         self.dec_emb_dim = dec_emb_dim
         self.dec_num_heads = dec_num_heads
         self.encoder = MHAEncoder(embedding_dim=enc_emb_dim, ff_hidden_dim=enc_hid_dim, num_layers=self.enc_num_layers, num_heads=self.enc_num_heads)
         self.decoder = MHADecoder(embedding_dim=dec_emb_dim, num_heads=dec_num_heads)
 
         # Initial token
-        self.token_1 = torch.empty(enc_emb_dim)
-        self.token_f = torch.empty(enc_emb_dim)
+        self.token_1 = torch.zeros(enc_emb_dim)
+        self.token_f = torch.zeros(enc_emb_dim)
         nn.init.uniform_(self.token_1, a=0, b=1)
         nn.init.uniform_(self.token_f, a=0, b=1)
         nn.Parameter(self.token_1)
@@ -41,21 +39,17 @@ class Graph2Seq(nn.Module):
 
     def forward(self, x):
         batch_size = x.shape[0]
-        tours = torch.zeros(batch_size, self.graph_size)
+        tours = torch.zeros(batch_size, self.graph_size).to(x.device, non_blocking=True)
 
         # Move initial token to same device as input
-        self.token_1.to(x.device)
-        self.token_f.to(x.device)
-        print(f"token_1: {self.token_1.device}")
-        print(f"token_f: {self.token_f.device}")
+        self.token_1 = self.token_1.to(x.device, non_blocking=True)
+        self.token_f = self.token_f.to(x.device, non_blocking=True)
 
         # Encoding the Graph
         nodes_emb = self.encoder.forward(x)
-        print(f"nodes_emb: {nodes_emb.device}")
 
         # Computing Graph embedding
         graph_emb = nodes_emb.mean(dim=1)
-        print(f"graph_emb: {nodes_emb.device}")
 
         # Decoder Inputs
         context_emb = torch.concat([
@@ -65,19 +59,15 @@ class Graph2Seq(nn.Module):
         ], dim=1)
 
         # Decoding the Tour
-        start_emb = torch.zeros(batch_size, self.enc_emb_dim).to(x.device)
-        print(f"start_emb: {start_emb.device}")
-        probs = torch.zeros(batch_size, self.graph_size, self.graph_size).to(x.device)
-        print(f"probs: {probs.device}")
-        mask = torch.zeros(batch_size, self.graph_size).to(x.device)
+        start_emb = torch.zeros(batch_size, self.enc_emb_dim).to(x.device, non_blocking=True)
+        probs = torch.zeros(batch_size, self.graph_size, self.graph_size).to(x.device, non_blocking=True)
+        mask = torch.zeros(batch_size, self.graph_size).to(x.device, non_blocking=True)
         for i in range(self.graph_size):
             output = self.decoder.forward(context_emb=context_emb, nodes_emb=nodes_emb, mask=mask)
-            print(f"output_dec: {output.device}")
 
             # Find probabilities
             prob = F.softmax(output, dim=1)
             dec_idx = prob.argmax(1)
-
             # Prepare input for next timestep
             for j in range(batch_size):
                 mask[j, dec_idx[j]] = 1.
