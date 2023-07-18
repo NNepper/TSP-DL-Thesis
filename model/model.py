@@ -34,8 +34,8 @@ class Graph2Seq(nn.Module):
         self.token_f = torch.zeros(enc_emb_dim)
         nn.init.uniform_(self.token_1, a=0, b=1)
         nn.init.uniform_(self.token_f, a=0, b=1)
-        nn.Parameter(self.token_1)
-        nn.Parameter(self.token_f)
+        self.token_1 = nn.Parameter(self.token_1)
+        self.token_f = nn.Parameter(self.token_f)
 
     def forward(self, x):
         batch_size = x.shape[0]
