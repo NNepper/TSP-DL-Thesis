@@ -1,3 +1,4 @@
+#!/bin/bash
 #SBATCH --job-name=NS
 #SBATCH --output=ns-%j.out
 #SBATCH --error=ns-%j.err
@@ -7,34 +8,21 @@
 #SBATCH --mem=64G
 #SBATCH --time=24:00:00
 #SBATCH --gres=gpu:1
+#SBATCH --constraint=Tesla
 #SBATCH --partition=gpu
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=nathan.nepper@student.ucouvain.be
 
-# Define a function to run when the script is terminated
-function cleanup {
-    cp -r "$LOCALSCRATCH/$SLURM_JOB_ID/" "$HOME/$SLURM_JOB_ID" &&\
-    rm -rf "$LOCALSCRATCH/$SLURM_JOB_ID"
-}
-trap cleanup SIGTERM
-
-
 # Load the required modules
-# Load the required modules
-module --force purge
-module load releases/2022a
-module load PyTorch/1.12.1-foss-2022a-CUDA-11.7.0
-module load Python
-module load matplotlib
-module load SciPy-bundle
-module load scikit-learn
+module load Python/3.8.6-GCCcore-10.2.0
+module load root_numpy/4.8.0-foss-2020b-Python-3.8.6
+module load PyTorch/1.10.0-fosscuda-2020b
+module load matplotlib/3.3.3-foss-2020b
+module load SciPy-bundle/2020.11-fosscuda-2020b
+module load scikit-learn/0.23.2-fosscuda-2020b
 
 # Prepare results folder
-mkdir -p "$LOCALSCRATCH/$SLURM_JOB_ID"
+mkdir -p "$GLOBALSCRATCH/$LSLURM_JOB_ID"
 mkdir -p "$HOME/$SLURM_JOB_ID"
-mkdir -p "$LOCALSCRATCH/$SLURM_JOB_ID/result"
 
-# Move code and data to local scratch
-cp -r * "$LOCALSCRATCH/$SLURM_JOB_ID/"
-
-python $LOCALSCRATCH/$SLURM_JOB_ID/experimentation_Graph2Seq.py --enc_hid_dim 1024 --enc_num_heads 8  --num_nodes 50  --loss negative_sampling --directory $LOCALSCRATCH/$SLURM_JOB_ID/result --data_train  $LOCALSCRATCH/$SLURM_JOB_ID/data/tsp50_train.txt --data_test $LOCALSCRATCH/$SLURM_JOB_ID/data/tsp50_test.txt --n_gpu 1
+python $HOME/TSP-DeepRL-Thesis/experimentation_Graph2Seq.py --enc_num_heads 8  --num_nodes 20  --loss negative_sampling --directory $GLOBALSCRATCH/$SLURM_JOB_ID --data_train  $GLOBALSCRATCH/data/tsp20_train.txt --data_test $GLOBALSCRATCH/data/tsp20_test.txt --n_gpu 1 --batch_size 512 --epochs 50
