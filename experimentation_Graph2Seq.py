@@ -31,7 +31,7 @@ parser.add_argument('--enc_num_layers', type=int, default=6, help='number of lay
 parser.add_argument('--enc_num_heads', type=int, default=8, help='number of Attention heads on Encoder')
 parser.add_argument('--dec_num_heads', type=int, default=8, help='number of Attention heads on Decoder')
 parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (default: .1)')
-parser.add_argument('--lr', type=float, default=.0001, help='learning rate')
+parser.add_argument('--lr', type=float, default=.001, help='learning rate')
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use (default: 2)')
 parser.add_argument('--loss', type=str, default='negative_sampling', help='loss function to use (default: negative_sampling)')
@@ -49,7 +49,7 @@ if not os.path.exists(config.directory):
     
     with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(["Epoch", "train_loss", "test_loss", "mean_grad_norm"])
+        writer.writerow(["Epoch", "train_loss", "test_loss", "mean_grad_norm", "learning_rate"])
 
 if __name__ == '__main__':
     # Model definition
@@ -67,7 +67,7 @@ if __name__ == '__main__':
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=30, verbose=True)
 
     # Loss function
     if config.loss == 'negative_sampling':
@@ -100,13 +100,12 @@ if __name__ == '__main__':
             train_loss += loss.item()
 
             loss.backward()
-            grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 3)
-        
-            optimizer.step()    # Apply the weight update
-
+            grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 5)        
+            optimizer.step()     # Apply the weight update
+ 
         train_loss /= len(train_dataloader)
+        scheduler.step(train_loss) # Update the learning rate following schedule
 
-        scheduler.step(train_loss)
 
         # Validation
         model.eval()
@@ -141,4 +140,4 @@ if __name__ == '__main__':
         print("Epoch:", str(epoch+1), "Train Loss:", np.round(train_loss, 3), "Val Loss:", np.round(test_loss, 3), "Mean Grad Norm:", np.round(grad_norm.mean().item(), 3))
         with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow([epoch+1, train_loss, test_loss, grad_norm.mean()])
+            writer.writerow([epoch+1, train_loss, test_loss, grad_norm.mean(), scheduler.get_last_lr()])
