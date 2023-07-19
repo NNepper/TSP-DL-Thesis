@@ -17,9 +17,13 @@ from model.Graph2Seq import Graph2Seq
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised GNN model')
 parser.add_argument('--num_nodes', type=int, default=20, help='number of nodes in the graphs (default: 10)')
 parser.add_argument('--data_path', type=str, help='Path to the dataset generated using the TSP_Dataset notebook')
-parser.add_argument('--model_type', type=str, default="Graph2Seq", help='Neural-Net architecture to be used by the model (default: Graph2Graph)')
 parser.add_argument('--model_path', type=str, default="G2G", help="Path to the model's weights")
-parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
+parser.add_argument('--emb_dim', type=int, default=512, help='Size of the embedding vector (default: 128)')
+parser.add_argument('--enc_hid_dim', type=int, default=2048, help='number of unit per dense layer in the Node-Wise Feed-Forward Network (default: 2048))')
+parser.add_argument('--enc_num_layers', type=int, default=6, help='number of layer')
+parser.add_argument('--enc_num_heads', type=int, default=8, help='number of Attention heads on Encoder')
+parser.add_argument('--dec_num_heads', type=int, default=8, help='number of Attention heads on Decoder')
+parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use (default: 2)')
 config = parser.parse_args()
 
 
@@ -30,29 +34,16 @@ if __name__ == '__main__':
         batch = list(DataLoader(graphs, batch_size=len(graphs)))[0]
 
     # MODEL
-    if config.model_type == "Graph2Graph":
-        model = Graph2Graph(graph_size=config.num_nodes, hidden_dim=512, num_layers=6)
-    else:
-        model = Graph2Seq(graph_size=config.num_nodes, enc_num_head=8, enc_num_layers=6, enc_hid_dim=512, dec_hid_dim=512, dec_num_layers=4, dec_num_heads=8)
-    model.load_state_dict(torch.load(config.model_path))
+    model = Graph2Seq(
+        dec_emb_dim=config.emb_dim,
+        dec_num_heads=config.dec_num_heads,
+        enc_emb_dim=config.emb_dim,
+        enc_hid_dim=config.enc_hid_dim,
+        enc_num_layers=config.enc_num_layers,
+        enc_num_head=config.enc_num_heads,
+        graph_size=config.num_nodes,
+        drop_rate=0.0,
+        teacher_forcing_ratio=0.0
+    )    
 
-    # SEARCH
-    search = BFSearch()
-
-    # Forward pass of the test examples
-    X = batch.x.to(torch.float32)
-    edge_attr = batch.edge_attr.to(torch.float32)
-    edge_index = batch.edge_index
-
-    tour, loss = model.forward(X, batch.edge_index, edge_attr)
-
-    # Decode the tour given the probability Heatmap
-    #preds, log_probs = search.predict(pi, torch.zeros(pi.shape[0]).int())
-
-    # Compute the optimality gap of each solution given the optimum
-    #loss = compute_optimality_gap(batch, preds)
-
-    # Visualisation
-    for i in range(batch.num_graphs):
-        fig = draw_solution_graph(batch[i], tour[i])
-        fig.savefig(f"{config.directory}/{i}.png")
+    # TODO: Inference code here

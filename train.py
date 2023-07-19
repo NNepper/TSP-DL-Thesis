@@ -4,10 +4,8 @@ import random
 import csv
 
 import torch
-from torch.optim.lr_scheduler import ReduceLROnPlateau;
+from torch.optim.lr_scheduler import MultiStepLR;
 from torch.utils.data import DataLoader
-from torch.nn.parallel import DistributedDataParallel
-from torch.cuda.amp import GradScaler
 
 import numpy as np
 
@@ -20,9 +18,9 @@ from model.model import Graph2Seq
 
 # Argument
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised Graph2Seq model')
-parser.add_argument('--data_train', type=str, default='data/tsp20_train.txt', help='Path to training dataset')
+parser.add_argument('--data_train', type=str, default='data/tsp20_test.txt', help='Path to training dataset')
 parser.add_argument('--data_test', type=str, default='data/tsp20_test.txt', help='Path to validation dataset')
-parser.add_argument('--batch_size', type=int, default=512, help='input batch size for training (default: 64)')
+parser.add_argument('--batch_size', type=int, default=20, help='input batch size for training (default: 64)')
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
 parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train (default: 100)')
 parser.add_argument('--emb_dim', type=int, default=512, help='Size of the embedding vector (default: 128)')
@@ -34,40 +32,52 @@ parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (d
 parser.add_argument('--lr', type=float, default=.001, help='learning rate')
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use (default: 2)')
-parser.add_argument('--loss', type=str, default='negative_sampling', help='loss function to use (default: negative_sampling)')
+parser.add_argument('--loss', type=str, default='vanilla', help='loss function to use (default: negative_sampling)')
+parser.add_argument('--teacher_forcing', type=float, default=.5, help='teacher forcing ratio (default: .5)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
 
 config = parser.parse_args()
 
-# pytorch Hardware parameters
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# Check if GPU is available
 torch.backends.cudnn.benchmark = True
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+    print(f"Using {torch.cuda.get_device_name()} for training.")
+else:
+    device = torch.device("cpu")
+    print("No GPU available, using CPU for training.")
 
 # Prepare metrics and results
 if not os.path.exists(config.directory):
     os.makedirs(config.directory)
-    
-    with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(["Epoch", "train_loss", "test_loss", "mean_grad_norm", "learning_rate"])
+
+with open(config.directory + "/metrics.csv", 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(["Epoch", "train_loss", "test_loss", "mean_grad_norm", "learning_rate"])
 
 if __name__ == '__main__':
     # Model definition
     model = Graph2Seq(
-    dec_emb_dim=config.emb_dim,
-    dec_num_heads=config.dec_num_heads,
-    enc_emb_dim=config.emb_dim,
-    enc_hid_dim=config.enc_hid_dim,
-    enc_num_layers=config.enc_num_layers,
-    enc_num_head=config.enc_num_heads,
-    graph_size=config.num_nodes,
+        dec_emb_dim=config.emb_dim,
+        dec_num_heads=config.dec_num_heads,
+        enc_emb_dim=config.emb_dim,
+        enc_hid_dim=config.enc_hid_dim,
+        enc_num_layers=config.enc_num_layers,
+        enc_num_head=config.enc_num_heads,
+        graph_size=config.num_nodes,
+        drop_rate=config.drop_rate,
     )
-    model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
+
+    # Multi-GPU support
+    if torch.cuda.device_count() > 1:
+        model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
+
+    # Move model to GPU
     model = model.to(device, non_blocking=True)
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=30, verbose=True)
+    scheduler = MultiStepLR(optimizer, milestones=[int(config.epoch * (1/3)),int(config.epoch * (2/3))], gamma=0.1)
 
     # Loss function
     if config.loss == 'negative_sampling':
@@ -95,17 +105,15 @@ if __name__ == '__main__':
             graph = graph.to(device, non_blocking=True)
             solution = solution.to(device, non_blocking=True)
             
-            probs, outputs = model(graph)
+            probs, outputs = model(graph, solution, teacher_forcing_ratio=config.teacher_forcing)
             loss = criterion(probs, solution).mean()
             train_loss += loss.item()
 
             loss.backward()
-            grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 5)        
+            grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 5).item()       
             optimizer.step()     # Apply the weight update
  
         train_loss /= len(train_dataloader)
-        scheduler.step(train_loss) # Update the learning rate following schedule
-
 
         # Validation
         model.eval()
@@ -115,9 +123,9 @@ if __name__ == '__main__':
         with torch.no_grad():
             for i, (graph, solution) in enumerate(test_dataloader):
                 graph = graph.to(device, non_blocking=True)
-                solution = solution.to(device, non_blocking=True)
+                target = solution.to(device, non_blocking=True)
                 
-                probs, tour = model(graph)
+                probs, tour = model(graph, target, teacher_forcing_ratio=0.0)
 
                 loss = criterion(probs, solution).mean()
                 test_loss += loss.item()
@@ -133,8 +141,11 @@ if __name__ == '__main__':
 
             test_loss /= len(test_dataloader)
 
+        # Learning rate scheduler update
+        scheduler.step()
+
         # Save model
-        torch.save(model.module.state_dict(), os.path.join(config.directory, "model.pt"))
+        torch.save(model.state_dict(), config.directory + "/model.pt")
 
         # report metrics
         print("Epoch:", str(epoch+1), "Train Loss:", np.round(train_loss, 3), "Val Loss:", np.round(test_loss, 3), "Mean Grad Norm:", np.round(grad_norm.mean().item(), 3))

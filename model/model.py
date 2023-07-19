@@ -14,7 +14,8 @@ class Graph2Seq(nn.Module):
                  enc_num_layers: int,
                  enc_num_head: int,
                  dec_emb_dim: int,
-                 dec_num_heads: int
+                 dec_num_heads: int,
+                 drop_rate: int = 0.1,
                  ):
         super().__init__()
 
@@ -26,7 +27,7 @@ class Graph2Seq(nn.Module):
         self.enc_num_heads = enc_num_head
         self.dec_emb_dim = dec_emb_dim
         self.dec_num_heads = dec_num_heads
-        self.encoder = MHAEncoder(embedding_dim=enc_emb_dim, ff_hidden_dim=enc_hid_dim, num_layers=self.enc_num_layers, num_heads=self.enc_num_heads)
+        self.encoder = MHAEncoder(embedding_dim=enc_emb_dim, ff_hidden_dim=enc_hid_dim, num_layers=self.enc_num_layers, num_heads=self.enc_num_heads, drop_rate=drop_rate)
         self.decoder = MHADecoder(embedding_dim=dec_emb_dim, num_heads=dec_num_heads)
 
         # Initial token
@@ -37,7 +38,7 @@ class Graph2Seq(nn.Module):
         self.token_1 = nn.Parameter(self.token_1)
         self.token_f = nn.Parameter(self.token_f)
 
-    def forward(self, x):
+    def forward(self, x, target=None, teacher_forcing_ratio=0.0):
         batch_size = x.shape[0]
         tours = torch.zeros(batch_size, self.graph_size).to(x.device, non_blocking=True)
 
@@ -67,15 +68,21 @@ class Graph2Seq(nn.Module):
 
             # Find probabilities
             prob = F.softmax(output, dim=1)
-            dec_idx = prob.argmax(1)
+            dec_idx = prob.argmax(1)    # Greedy decoding
+
             # Prepare input for next timestep
             for j in range(batch_size):
+                # Teacher forcing
+                if torch.rand(1).item() < teacher_forcing_ratio and target is not None:
+                    dec_idx[j] = target[j, i]
+
                 mask[j, dec_idx[j]] = 1.
                 tours[j, i] = dec_idx[j]
                 probs[j, i, :] = prob[j, :]
                 if (i == 0):
                     start_emb[j, :] = nodes_emb[j, dec_idx[j], :]
 
+            # Context for next timestep
             context_emb = torch.concat([
                 graph_emb,
                 start_emb,

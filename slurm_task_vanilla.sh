@@ -25,4 +25,4 @@ module load scikit-learn/0.23.2-fosscuda-2020b
 mkdir -p "$GLOBALSCRATCH/$LSLURM_JOB_ID"
 mkdir -p "$HOME/$SLURM_JOB_ID"
 
-python $HOME/TSP-DeepRL-Thesis/experimentation_Graph2Seq.py --enc_num_heads 8  --num_nodes 20  --loss vanilla --directory $GLOBALSCRATCH/$SLURM_JOB_ID --data_train  $GLOBALSCRATCH/data/tsp20_train.txt --data_test $GLOBALSCRATCH/data/tsp20_test.txt --n_gpu 1 --batch_size 512 --epochs 50
+python $HOME/TSP-DeepRL-Thesis/train.py --enc_num_heads 8  --num_nodes 20  --loss vanilla --directory $GLOBALSCRATCH/$SLURM_JOB_ID --data_train  $GLOBALSCRATCH/data/tsp20_train.txt --data_test $GLOBALSCRATCH/data/tsp20_test.txt --n_gpu 1 --batch_size 512 --epochs 50 --teacher_forcing 0.5
