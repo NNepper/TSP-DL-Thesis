@@ -69,6 +69,11 @@ class MHAEncoder(nn.Module):
         # Dropout
         self.dropout = nn.Dropout(drop_rate)
 
+        # Weight Initalization
+        nn.init.uniform_(self.linear0.weight, a=0, b=1)
+        nn.init.uniform_(self.linear0.bias, a=0, b=1)
+
+
     def forward(self, x):
         # Initial embedding
         h = self.linear0(x)
