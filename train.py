@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
-    scheduler = MultiStepLR(optimizer, milestones=[int(config.epoch * (1/3)),int(config.epoch * (2/3))], gamma=0.1)
+    scheduler = MultiStepLR(optimizer, milestones=[int(config.epochs * (1/3)),int(config.epochs * (2/3))], gamma=0.1)
 
     # Loss function
     if config.loss == 'negative_sampling':
