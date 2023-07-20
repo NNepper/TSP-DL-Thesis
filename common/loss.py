@@ -5,9 +5,6 @@ import torch
 
 def cross_entropy(predictions, solutions):
     loss = torch.zeros(predictions.shape[0]).float().to(predictions.device, non_blocking=True)
-    print("loss:", loss.shape)
-    print("predictions:", predictions.shape)
-    print("solutions:", solutions.shape)
     # Compute the true edges term
     for i, tour in enumerate(solutions):
         # Forward tour

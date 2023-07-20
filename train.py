@@ -4,7 +4,7 @@ import random
 import csv
 
 import torch
-from torch.optim.lr_scheduler import MultiStepLR;
+from torch.optim.lr_scheduler import ExponentialLR;
 from torch.utils.data import DataLoader
 
 import numpy as np
@@ -39,7 +39,6 @@ parser.add_argument('--seed', type=int, default=42, help='random seed (default: 
 config = parser.parse_args()
 
 # Check if GPU is available
-torch.backends.cudnn.benchmark = True
 if torch.cuda.is_available():
     device = torch.device("cuda")
     print(f"Using {torch.cuda.get_device_name()} for training.")
@@ -77,8 +76,7 @@ if __name__ == '__main__':
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
-    scheduler = MultiStepLR(optimizer, milestones=[int(config.epochs * (1/3)),int(config.epochs * (2/3))], gamma=0.1)
-
+    scheduler = ExponentialLR(optimizer, 0.98)
     # Loss function
     if config.loss == 'negative_sampling':
         criterion = cross_entropy_negative_sampling
@@ -93,20 +91,20 @@ if __name__ == '__main__':
     train_dataset = TSPDataset(config.data_train, config.num_nodes)
     train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=config.n_gpu)
     test_dataset = TSPDataset(config.data_test, config.num_nodes)
-    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False, pin_memory=True, num_workers=0)
+    test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False, pin_memory=True, num_workers=0)
 
     # Training loop
     for epoch in range(config.epochs):
         model.train()
         train_loss = 0
         grad_norm = torch.zeros(len(train_dataloader))
-        for i, (graph, solution) in enumerate(train_dataloader):
+        for i, (graph, target) in enumerate(train_dataloader):
             optimizer.zero_grad()
             graph = graph.to(device, non_blocking=True)
-            solution = solution.to(device, non_blocking=True)
+            target = target.to(device, non_blocking=True)
             
-            probs, outputs = model(graph, solution, teacher_forcing_ratio=config.teacher_forcing)
-            loss = criterion(probs, solution).mean()
+            probs, outputs = model(graph)
+            loss = criterion(probs, target).mean()
             train_loss += loss.item()
 
             loss.backward()
@@ -119,36 +117,34 @@ if __name__ == '__main__':
         model.eval()
         tours = []
         test_loss = 0
-        selected_plot = random.randrange(len(test_dataloader))
+        selected_plot = random.randrange(len(test_dataset))
         with torch.no_grad():
-            for i, (graph, solution) in enumerate(test_dataloader):
-                graph = graph.to(device, non_blocking=True)
-                target = solution.to(device, non_blocking=True)
-                
-                probs, tour = model(graph, target, teacher_forcing_ratio=0.0)
+            graph, target = next(iter(test_dataloader))
+            graph = graph.to(device, non_blocking=True)
+            target = target.to(device, non_blocking=True)
+            
+            probs, tour = model(graph, target, teacher_forcing_ratio=0.0)
 
-                loss = criterion(probs, solution).mean()
-                test_loss += loss.item()
+            loss = criterion(probs, target).mean()
+            test_loss += loss.item()
 
-                for j in range(len(outputs)):
-                    tours.append(outputs[j].cpu().numpy())
+            for j in range(len(outputs)):
+                tours.append(outputs[j].cpu().numpy())
 
-                # Plot the selected test graph
-                if i == selected_plot:
-                    fig = draw_solution_graph(graph.squeeze().detach().cpu().numpy(), solution.squeeze().detach().cpu().numpy(), tour.squeeze().detach().cpu().numpy())
-                    fig.savefig(
-                        config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch + 1) + ".png")
-
-            test_loss /= len(test_dataloader)
-
-        # Learning rate scheduler update
-        scheduler.step()
+            # Plot the selected test graph
+            if i == selected_plot:
+                fig = draw_solution_graph(graph.squeeze().detach().cpu().numpy(), target.squeeze().detach().cpu().numpy(), tour.squeeze().detach().cpu().numpy())
+                fig.savefig(
+                    config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch + 1) + ".png")
+                plt.close(fig)
+        # report metrics
+        print("Epoch:", str(epoch+1), "Train Loss:", np.round(train_loss, 3), "Val Loss:", np.round(test_loss, 3), "Mean Grad Norm:", np.round(grad_norm.mean().item(), 3), "Learning rate:", scheduler.get_last_lr()[0])
+        with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([epoch+1, train_loss, test_loss, grad_norm.mean(), scheduler.get_last_lr()])
 
         # Save model
         torch.save(model.state_dict(), config.directory + "/model.pt")
 
-        # report metrics
-        print("Epoch:", str(epoch+1), "Train Loss:", np.round(train_loss, 3), "Val Loss:", np.round(test_loss, 3), "Mean Grad Norm:", np.round(grad_norm.mean().item(), 3))
-        with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow([epoch+1, train_loss, test_loss, grad_norm.mean(), scheduler.get_last_lr()])
+        # Learning rate scheduler update
+        scheduler.step()
