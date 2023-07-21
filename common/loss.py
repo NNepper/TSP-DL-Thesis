@@ -1,6 +1,7 @@
 import random
 
 import torch
+import torch.nn as nn
 
 
 def cross_entropy(predictions, solutions):
@@ -43,24 +44,23 @@ def cross_entropy_negative_sampling(predictions, solutions, n_neg=5):
 
     return loss
 
-def cross_entropy_full(predictions, solutions):
-    loss = torch.zeros(predictions.shape[0]).float().to(predictions.device, non_blocking=True)
+def cross_entropy_full(probabilities, solutions):
+    batch_size, num_nodes = solutions.size()
+    target = torch.ones(batch_size, num_nodes, num_nodes).float()
+    
+    for i in range(batch_size):
+        for j in range(num_nodes):
+            target[i,j,solutions[i,j]] = 1
 
-    # Compute the true edges term
-    for i, tour in enumerate(solutions):
-        # Forward tour
-        for j, u in enumerate(tour):
-            v = tour[(j + 1) % len(tour)]
-            loss[i] -= torch.log(torch.clamp(predictions[i, u, v], min=1e-6))
-            loss[i] -= torch.log(torch.clamp(predictions[i, v, u], min=1e-6))
+    # Ravel the target and log_probabilities tensors
+    target = target.view(batch_size, num_nodes * num_nodes)
+    predictions = probabilities.view(batch_size, num_nodes * num_nodes)
 
-    # Compute the false edges term (full)
-    for i, tour in enumerate(solutions):
-        for j, u in enumerate(tour):
-            for v in range(len(tour)):
-                if v != tour[(j + 1) % len(tour)]:
-                    loss[i] -= torch.log(1 - torch.clamp(predictions[i, u, v], min=1e-6, max=1 - 1e-6))
+    loss = nn.CrossEntropyLoss(reduction='mean')(predictions, target)
+
     return loss
+
+    
 
 
 def policy_gradient_loss(batch_pi, batch_distances, opt_length):

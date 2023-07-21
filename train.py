@@ -32,7 +32,7 @@ parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (d
 parser.add_argument('--lr', type=float, default=.001, help='learning rate')
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use (default: 2)')
-parser.add_argument('--loss', type=str, default='vanilla', help='loss function to use (default: negative_sampling)')
+parser.add_argument('--loss', type=str, default='full', help='loss function to use (default: negative_sampling)')
 parser.add_argument('--teacher_forcing', type=float, default=.5, help='teacher forcing ratio (default: .5)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
 
