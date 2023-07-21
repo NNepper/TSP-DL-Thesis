@@ -35,6 +35,7 @@ parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use 
 parser.add_argument('--loss', type=str, default='full', help='loss function to use (default: negative_sampling)')
 parser.add_argument('--teacher_forcing', type=float, default=.5, help='teacher forcing ratio (default: .5)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
+parser.add_argument('--warmup_epochs', type=int, default=10, help='Number of warmup epoch before reducing the learning rate in the scheduler')
 
 config = parser.parse_args()
 
@@ -76,7 +77,8 @@ if __name__ == '__main__':
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
-    scheduler = ExponentialLR(optimizer, 0.98)
+    lambda_decay = lambda epoch : 1 / (max(config.warmup_epochs, epoch)**0.5)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda_decay)
     # Loss function
     if config.loss == 'negative_sampling':
         criterion = cross_entropy_negative_sampling
@@ -104,7 +106,7 @@ if __name__ == '__main__':
             target = target.to(device, non_blocking=True)
             
             probs, outputs = model(graph)
-            loss = criterion(probs, target).mean()
+            loss = criterion(probs, target)
             train_loss += loss.item()
 
             loss.backward()
@@ -125,7 +127,7 @@ if __name__ == '__main__':
             
             probs, tour = model(graph, target, teacher_forcing_ratio=0.0)
 
-            loss = criterion(probs, target).mean()
+            loss = criterion(probs, target)
             test_loss += loss.item()
 
             for j in range(len(outputs)):
@@ -135,8 +137,8 @@ if __name__ == '__main__':
             if i == selected_plot:
                 fig = draw_solution_graph(graph.squeeze().detach().cpu().numpy(), target.squeeze().detach().cpu().numpy(), tour.squeeze().detach().cpu().numpy())
                 fig.savefig(
-                    config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch + 1) + ".png")
-                plt.close(fig)
+                        config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch) + ".png"
+                        )
         # report metrics
         print("Epoch:", str(epoch+1), "Train Loss:", np.round(train_loss, 3), "Val Loss:", np.round(test_loss, 3), "Mean Grad Norm:", np.round(grad_norm.mean().item(), 3), "Learning rate:", scheduler.get_last_lr()[0])
         with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
