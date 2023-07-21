@@ -22,7 +22,7 @@ parser.add_argument('--data_train', type=str, default='data/tsp20_test.txt', hel
 parser.add_argument('--data_test', type=str, default='data/tsp20_test.txt', help='Path to validation dataset')
 parser.add_argument('--batch_size', type=int, default=20, help='input batch size for training (default: 64)')
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
-parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train (default: 100)')
+parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
 parser.add_argument('--emb_dim', type=int, default=512, help='Size of the embedding vector (default: 128)')
 parser.add_argument('--enc_hid_dim', type=int, default=2048, help='number of unit per dense layer in the Node-Wise Feed-Forward Network (default: 2048))')
 parser.add_argument('--enc_num_layers', type=int, default=6, help='number of layer')
