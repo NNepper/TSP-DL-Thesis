@@ -46,15 +46,15 @@ def cross_entropy_negative_sampling(predictions, solutions, n_neg=5):
 
 def cross_entropy_full(probabilities, solutions):
     batch_size, num_nodes = solutions.size()
-    target = torch.ones(batch_size, num_nodes, num_nodes).float().to(probabilities.device, non_blocking=True)
+    target = torch.ones(batch_size, num_nodes, num_nodes).float()
     
     for i in range(batch_size):
         for j in range(num_nodes):
             target[i,j,solutions[i,j]] = 1
 
     # Ravel the target and log_probabilities tensors
-    target = target.view(batch_size, num_nodes * num_nodes)
-    predictions = probabilities.view(batch_size, num_nodes * num_nodes)
+    target = target.view(batch_size, num_nodes * num_nodes).to(probabilities.device, non_blocking=True)
+    predictions = probabilities.view(batch_size, num_nodes * num_nodes).to(probabilities.device, non_blocking=True)
 
     loss = nn.CrossEntropyLoss(reduction='mean')(predictions, target)
 
