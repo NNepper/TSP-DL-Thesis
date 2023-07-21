@@ -46,7 +46,7 @@ def cross_entropy_negative_sampling(predictions, solutions, n_neg=5):
 
 def cross_entropy_full(probabilities, solutions):
     batch_size, num_nodes = solutions.size()
-    target = torch.ones(batch_size, num_nodes, num_nodes).float()
+    target = torch.ones(batch_size, num_nodes, num_nodes).float().to(probabilities.device, non_blocking=True)
     
     for i in range(batch_size):
         for j in range(num_nodes):
