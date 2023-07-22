@@ -68,9 +68,15 @@ if __name__ == '__main__':
         drop_rate=config.drop_rate,
     )
 
+    # Data importing
+    train_dataset = TSPDataset(config.data_train, config.num_nodes)
+    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=False, num_workers=config.n_gpu)
+    test_dataset = TSPDataset(config.data_test, config.num_nodes)
+    test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False, pin_memory=False, num_workers=0)
+
     # Multi-GPU support
     if torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
+        model = torch.nn.DataParallel(model).cuda()  # Wrap the model with DataParallel
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
@@ -86,12 +92,6 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError
 
-    # Data importing
-    train_dataset = TSPDataset(config.data_train, config.num_nodes)
-    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=False, num_workers=config.n_gpu)
-    test_dataset = TSPDataset(config.data_test, config.num_nodes)
-    test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False, pin_memory=False, num_workers=0)
-
     # Training loop
     for epoch in range(config.epochs):
         model.train()
@@ -99,6 +99,8 @@ if __name__ == '__main__':
         grad_norm = torch.zeros(len(train_dataloader))
         for i, (graph, target) in enumerate(train_dataloader):
             optimizer.zero_grad()
+            graph = graph.cuda()
+            target = target.cuda()
             
             probs, outputs = model(graph)
             loss = criterion(probs, target).mean()
@@ -117,6 +119,8 @@ if __name__ == '__main__':
         selected_plot = random.randrange(len(test_dataset))
         with torch.no_grad():
             graph, target = next(iter(test_dataloader))
+            graph = graph.cuda()
+            target = target.cuda()
             
             probs, tour = model(graph, target, teacher_forcing_ratio=0.0)
 
