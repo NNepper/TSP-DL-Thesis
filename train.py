@@ -99,8 +99,6 @@ if __name__ == '__main__':
         grad_norm = torch.zeros(len(train_dataloader))
         for i, (graph, target) in enumerate(train_dataloader):
             optimizer.zero_grad()
-            graph = graph.to(model.device , non_blocking=True)
-            target = target.to(model.device, non_blocking=True)
             
             probs, outputs = model(graph)
             loss = criterion(probs, target).mean()
@@ -119,8 +117,6 @@ if __name__ == '__main__':
         selected_plot = random.randrange(len(test_dataset))
         with torch.no_grad():
             graph, target = next(iter(test_dataloader))
-            graph = graph.to(model.device, non_blocking=True)
-            target = target.to(model.device, non_blocking=True)
             
             probs, tour = model(graph, target, teacher_forcing_ratio=0.0)
 

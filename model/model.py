@@ -27,12 +27,12 @@ class Graph2Seq(nn.Module):
         self.enc_num_heads = enc_num_head
         self.dec_emb_dim = dec_emb_dim
         self.dec_num_heads = dec_num_heads
-        self.encoder = MHAEncoder(embedding_dim=enc_emb_dim, ff_hidden_dim=enc_hid_dim, num_layers=self.enc_num_layers, num_heads=self.enc_num_heads, drop_rate=drop_rate).to(self.device, non_blocking=True)
-        self.decoder = MHADecoder(embedding_dim=dec_emb_dim, num_heads=dec_num_heads).to(self.device, non_blocking=True)
+        self.encoder = MHAEncoder(embedding_dim=enc_emb_dim, ff_hidden_dim=enc_hid_dim, num_layers=self.enc_num_layers, num_heads=self.enc_num_heads, drop_rate=drop_rate)
+        self.decoder = MHADecoder(embedding_dim=dec_emb_dim, num_heads=dec_num_heads)
 
         # Initial token
-        self.token_1 = torch.zeros(enc_emb_dim).to(self.device, non_blocking=True)
-        self.token_f = torch.zeros(enc_emb_dim).to(self.device, non_blocking=True)
+        self.token_1 = torch.zeros(enc_emb_dim)
+        self.token_f = torch.zeros(enc_emb_dim)
         nn.init.uniform_(self.token_1, a=0, b=1)
         nn.init.uniform_(self.token_f, a=0, b=1)
         self.token_1 = nn.Parameter(self.token_1)
