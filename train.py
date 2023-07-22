@@ -72,9 +72,6 @@ if __name__ == '__main__':
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
 
-    # Move model to GPU
-    model = model.to(device, non_blocking=True)
-
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
     lambda_decay = lambda epoch : 1 / (max(config.warmup_epochs, epoch)**0.5)
@@ -91,9 +88,9 @@ if __name__ == '__main__':
 
     # Data importing
     train_dataset = TSPDataset(config.data_train, config.num_nodes)
-    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=config.n_gpu)
+    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, pin_memory=False, num_workers=config.n_gpu)
     test_dataset = TSPDataset(config.data_test, config.num_nodes)
-    test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False, pin_memory=True, num_workers=0)
+    test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False, pin_memory=False, num_workers=0)
 
     # Training loop
     for epoch in range(config.epochs):
@@ -102,11 +99,11 @@ if __name__ == '__main__':
         grad_norm = torch.zeros(len(train_dataloader))
         for i, (graph, target) in enumerate(train_dataloader):
             optimizer.zero_grad()
-            graph = graph.to(device, non_blocking=True)
-            target = target.to(device, non_blocking=True)
+            graph = graph.to(model.device , non_blocking=True)
+            target = target.to(model.device, non_blocking=True)
             
             probs, outputs = model(graph)
-            loss = criterion(probs, target)
+            loss = criterion(probs, target).mean()
             train_loss += loss.item()
 
             loss.backward()
@@ -122,12 +119,12 @@ if __name__ == '__main__':
         selected_plot = random.randrange(len(test_dataset))
         with torch.no_grad():
             graph, target = next(iter(test_dataloader))
-            graph = graph.to(device, non_blocking=True)
-            target = target.to(device, non_blocking=True)
+            graph = graph.to(model.device, non_blocking=True)
+            target = target.to(model.device, non_blocking=True)
             
             probs, tour = model(graph, target, teacher_forcing_ratio=0.0)
 
-            loss = criterion(probs, target)
+            loss = criterion(probs, target).mean()
             test_loss += loss.item()
 
             for j in range(len(outputs)):

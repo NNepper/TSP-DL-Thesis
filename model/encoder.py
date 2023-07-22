@@ -14,9 +14,9 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, input_dim, num_heads=8):
         super().__init__()
     
-        self.linear_q = nn.Linear(input_dim, input_dim)  # Query
-        self.linear_k = nn.Linear(input_dim, input_dim)  # Key 
-        self.linear_v = nn.Linear(input_dim, input_dim)  # Value
+        self.linear_q = nn.Linear(input_dim, input_dim).cuda()  # Query
+        self.linear_k = nn.Linear(input_dim, input_dim).cuda()  # Key 
+        self.linear_v = nn.Linear(input_dim, input_dim).cuda()  # Value
 
         self.tanh = nn.Tanh()
         self.softmax = nn.Softmax(dim=1)
