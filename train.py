@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
     # Multi-GPU support
     if torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model).cuda()  # Wrap the model with DataParallel
+        model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
@@ -99,8 +99,6 @@ if __name__ == '__main__':
         grad_norm = torch.zeros(len(train_dataloader))
         for i, (graph, target) in enumerate(train_dataloader):
             optimizer.zero_grad()
-            graph = graph.cuda()
-            target = target.cuda()
             
             probs, outputs = model(graph)
             loss = criterion(probs, target).mean()
@@ -119,8 +117,8 @@ if __name__ == '__main__':
         selected_plot = random.randrange(len(test_dataset))
         with torch.no_grad():
             graph, target = next(iter(test_dataloader))
-            graph = graph.cuda()
-            target = target.cuda()
+            graph = graph
+            target = target
             
             probs, tour = model(graph, target, teacher_forcing_ratio=0.0)
 
