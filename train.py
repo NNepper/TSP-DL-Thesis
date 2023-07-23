@@ -18,7 +18,7 @@ from model.model import Graph2Seq
 
 # Argument
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised Graph2Seq model')
-parser.add_argument('--data_train', type=str, default='data/tsp20_train.txt', help='Path to training dataset')
+parser.add_argument('--data_train', type=str, default='data/tsp20_test.txt', help='Path to training dataset')
 parser.add_argument('--data_test', type=str, default='data/tsp20_test.txt', help='Path to validation dataset')
 parser.add_argument('--batch_size', type=int, default=20, help='input batch size for training (default: 64)')
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
@@ -101,11 +101,11 @@ if __name__ == '__main__':
         for i, (graph, target) in enumerate(train_dataloader):
             optimizer.zero_grad() 
             
-            print(f"lr:{optimizer.param_groups[0]['lr']:.3f}, graph.shape:{graph.shape}")
+            print(f"lr:{optimizer.param_groups[0]['lr']:.3f}, graph.shape:{graph.shape}, device:{graph.device}")
 
             graph = graph.to(device)
             target = target.to(device)
-            probs, tours, loss = model(graph, target, teacher_forcing_ratio=config.teacher_forcing, loss=criterion)
+            probs, tours, loss = model(graph, target, teacher_forcing_ratio=config.teacher_forcing, loss_criterion=criterion)
             
             loss.mean().backward()
             train_loss += loss.mean().item()
@@ -118,7 +118,6 @@ if __name__ == '__main__':
 
         # Validation
         model.eval()
-        tours = []
         test_loss = 0
         selected_plot = random.randrange(len(test_dataset))
         with torch.no_grad():
@@ -127,25 +126,19 @@ if __name__ == '__main__':
             graph = graph.to(device)
             target = target.to(device)
 
-            probs, tour, loss = model(graph, target, teacher_forcing_ratio=0.0, criterion)
+            probs, outputs, loss = model(graph, target, teacher_forcing_ratio=0.0, loss_criterion=criterion)
 
-            loss = loss.mean()
-            test_loss += loss.item()
+            test_loss = loss.mean()
 
-            for j in range(len(outputs)):
-                tours.append(outputs[j].cpu().numpy())
-
-            # Plot the selected test graph
-            if i == selected_plot:
-                fig = draw_solution_graph(graph.squeeze().detach().cpu().numpy(), target.squeeze().detach().cpu().numpy(), tour.squeeze().detach().cpu().numpy())
-                fig.savefig(
-                        config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch) + ".png"
-                        )
+            fig = draw_solution_graph(graph[i].squeeze().detach().numpy(), target[i].detach().numpy(), outputs[i].detach().numpy())
+            fig.savefig(
+                    config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch) + ".png"
+                    )
         # report metrics
-        print("Epoch:", str(epoch+1), "Train Loss:", np.round(train_loss, 3), "Val Loss:", np.round(test_loss, 3), "Mean Grad Norm:", np.round(grad_norm.mean().item(), 3), "Learning rate:", scheduler.get_last_lr()[0])
+        print(f"Epoch:{epoch+1}, Train Loss: {train_loss:.6f}, Val Loss: {test_loss:.6f}, Mean Grad Norm: {grad_norm.mean():.6f}, Learning rate: {optimizer.param_groups[0]['lr']:.6f}")
         with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow([epoch+1, train_loss, test_loss, grad_norm.mean(), scheduler.get_last_lr()])
+            writer.writerow([epoch+1, train_loss, test_loss, grad_norm.mean(), optimizer.param_groups[0]['lr']])
 
         # Save model
         torch.save(model.state_dict(), config.directory + "/model.pt")

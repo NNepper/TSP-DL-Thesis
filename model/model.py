@@ -89,5 +89,5 @@ class Graph2Seq(nn.Module):
                 nodes_emb[torch.arange(batch_size), dec_idx, :]
             ], dim=1)
 
-        loss = loss_criterion(x, target)
+        loss = loss_criterion(probs, target)
         return probs, tours, loss
