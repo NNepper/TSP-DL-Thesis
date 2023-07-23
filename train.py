@@ -129,7 +129,7 @@ if __name__ == '__main__':
 
             test_loss = loss.mean()
 
-            fig = draw_solution_graph(graph[i].squeeze().detach().numpy(), target[i].detach().numpy(), outputs[i].detach().numpy())
+            fig = draw_solution_graph(graph[selected_plot].squeeze().cpu().detach().numpy(), target[selected_plot].cpu().detach().numpy(), outputs[selected_plot].cpu().detach().numpy())
             fig.savefig(
                     config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch) + ".png"
                     )
