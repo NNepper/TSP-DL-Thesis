@@ -38,7 +38,7 @@ class Graph2Seq(nn.Module):
         self.token_1 = nn.Parameter(self.token_1)
         self.token_f = nn.Parameter(self.token_f)
 
-    def forward(self, x, target=None, teacher_forcing_ratio=0.0):
+    def forward(self, x, target, loss_criterion, teacher_forcing_ratio=0.0):
         batch_size = x.shape[0]
         tours = torch.zeros(batch_size, self.graph_size).to(x.device, non_blocking=True)
 
@@ -89,4 +89,5 @@ class Graph2Seq(nn.Module):
                 nodes_emb[torch.arange(batch_size), dec_idx, :]
             ], dim=1)
 
-            return probs, tours
+        loss = loss_criterion(x, target)
+        return probs, tours, loss

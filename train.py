@@ -77,11 +77,12 @@ if __name__ == '__main__':
     # Multi-GPU support
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
+        print(f"Using {torch.cuda.device_count()} GPUs !")
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
-    lambda_decay = lambda epoch : 1 / (max(config.warmup_steps, epoch)**0.5)
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda_decay)
+    #lambda_decay = lambda epoch : 1 / (max(config.warmup_steps, epoch)**0.5)
+    #scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda_decay)
     # Loss function
     if config.loss == 'negative_sampling':
         criterion = cross_entropy_negative_sampling
@@ -100,16 +101,18 @@ if __name__ == '__main__':
         for i, (graph, target) in enumerate(train_dataloader):
             optimizer.zero_grad() 
             
-            graph = graph.to(device)
-            probs, outputs = model(graph)
-            
-            loss = criterion(probs, target).mean()
-            train_loss += loss.item()
+            print(f"lr:{optimizer.param_groups[0]['lr']:.3f}, graph.shape:{graph.shape}")
 
-            loss.backward()
+            graph = graph.to(device)
+            target = target.to(device)
+            probs, tours, loss = model(graph, target, teacher_forcing_ratio=config.teacher_forcing, loss=criterion)
+            
+            loss.mean().backward()
+            train_loss += loss.mean().item()
+
             grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 5).item()       
             optimizer.step()     # Apply the weight update
-            scheduler.step()     # Update the learning rate following schedule
+            #scheduler.step()     # Update the learning rate following schedule
 
         train_loss /= len(train_dataloader)
 
@@ -124,9 +127,9 @@ if __name__ == '__main__':
             graph = graph.to(device)
             target = target.to(device)
 
-            probs, tour = model(graph, target, teacher_forcing_ratio=0.0)
+            probs, tour, loss = model(graph, target, teacher_forcing_ratio=0.0, criterion)
 
-            loss = criterion(probs, target).mean()
+            loss = loss.mean()
             test_loss += loss.item()
 
             for j in range(len(outputs)):
