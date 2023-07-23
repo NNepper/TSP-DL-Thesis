@@ -35,7 +35,7 @@ parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use 
 parser.add_argument('--loss', type=str, default='full', help='loss function to use (default: negative_sampling)')
 parser.add_argument('--teacher_forcing', type=float, default=.5, help='teacher forcing ratio (default: .5)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-parser.add_argument('--warmup_epochs', type=int, default=10, help='Number of warmup epoch before reducing the learning rate in the scheduler')
+parser.add_argument('--warmup_steps', type=int, default=10000, help='Number of warmup steps before reducing the learning rate in the scheduler')
 
 config = parser.parse_args()
 
@@ -66,7 +66,7 @@ if __name__ == '__main__':
         enc_num_head=config.enc_num_heads,
         graph_size=config.num_nodes,
         drop_rate=config.drop_rate,
-    )
+    ).to(device)
 
     # Data importing
     train_dataset = TSPDataset(config.data_train, config.num_nodes)
@@ -76,11 +76,11 @@ if __name__ == '__main__':
 
     # Multi-GPU support
     if torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model).cuda()  # Wrap the model with DataParallel
+        model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
-    lambda_decay = lambda epoch : 1 / (max(config.warmup_epochs, epoch)**0.5)
+    lambda_decay = lambda epoch : 1 / (max(config.warmup_steps, epoch)**0.5)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda_decay)
     # Loss function
     if config.loss == 'negative_sampling':
@@ -98,9 +98,10 @@ if __name__ == '__main__':
         train_loss = 0
         grad_norm = torch.zeros(len(train_dataloader))
         for i, (graph, target) in enumerate(train_dataloader):
-            optimizer.zero_grad()
-            graph = graph.cuda()
-            target = target.cuda()
+            optimizer.zero_grad() 
+            
+            graph = graph.to(device)
+            target = target.to(device)
             
             probs, outputs = model(graph)
             loss = criterion(probs, target).mean()
@@ -109,7 +110,8 @@ if __name__ == '__main__':
             loss.backward()
             grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 5).item()       
             optimizer.step()     # Apply the weight update
- 
+            scheduler.step()     # Update the learning rate following schedule
+
         train_loss /= len(train_dataloader)
 
         # Validation
@@ -119,9 +121,9 @@ if __name__ == '__main__':
         selected_plot = random.randrange(len(test_dataset))
         with torch.no_grad():
             graph, target = next(iter(test_dataloader))
-            graph = graph.cuda()
-            target = target.cuda()
-            
+            graph = graph.to(device)
+            target = target.to(device)
+
             probs, tour = model(graph, target, teacher_forcing_ratio=0.0)
 
             loss = criterion(probs, target).mean()
@@ -145,5 +147,3 @@ if __name__ == '__main__':
         # Save model
         torch.save(model.state_dict(), config.directory + "/model.pt")
 
-        # Learning rate scheduler update
-        scheduler.step()
