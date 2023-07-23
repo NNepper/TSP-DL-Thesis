@@ -1,3 +1,4 @@
+import sys
 import argparse
 import os
 import random
@@ -35,7 +36,7 @@ parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use 
 parser.add_argument('--loss', type=str, default='full', help='loss function to use (default: negative_sampling)')
 parser.add_argument('--teacher_forcing', type=float, default=.5, help='teacher forcing ratio (default: .5)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-parser.add_argument('--warmup_steps', type=int, default=10000, help='Number of warmup steps before reducing the learning rate in the scheduler')
+parser.add_argument('--warmup_steps', type=int, default=10, help='Number of warmup steps before reducing the learning rate in the scheduler')
 
 config = parser.parse_args()
 
@@ -81,8 +82,8 @@ if __name__ == '__main__':
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=1e-4)
-    #lambda_decay = lambda epoch : 1 / (max(config.warmup_steps, epoch)**0.5)
-    #scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda_decay)
+    lambda_decay = lambda epoch : 1 / (max(config.warmup_steps, epoch)**0.5)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda_decay)
     # Loss function
     if config.loss == 'negative_sampling':
         criterion = cross_entropy_negative_sampling
@@ -100,8 +101,6 @@ if __name__ == '__main__':
         grad_norm = torch.zeros(len(train_dataloader))
         for i, (graph, target) in enumerate(train_dataloader):
             optimizer.zero_grad() 
-            
-            print(f"lr:{optimizer.param_groups[0]['lr']:.3f}, graph.shape:{graph.shape}, device:{graph.device}")
 
             graph = graph.to(device)
             target = target.to(device)
@@ -109,11 +108,11 @@ if __name__ == '__main__':
             
             loss.mean().backward()
             train_loss += loss.mean().item()
-
-            grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 5).item()       
+            
+            grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 10).item()       
             optimizer.step()     # Apply the weight update
-            #scheduler.step()     # Update the learning rate following schedule
 
+        scheduler.step()     # Update the learning rate following schedule
         train_loss /= len(train_dataloader)
 
         # Validation
@@ -134,6 +133,7 @@ if __name__ == '__main__':
             fig.savefig(
                     config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch) + ".png"
                     )
+            fig.close()
         # report metrics
         print(f"Epoch:{epoch+1}, Train Loss: {train_loss:.6f}, Val Loss: {test_loss:.6f}, Mean Grad Norm: {grad_norm.mean():.6f}, Learning rate: {optimizer.param_groups[0]['lr']:.6f}")
         with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:

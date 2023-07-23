@@ -51,11 +51,6 @@ class MHAEncoder(nn.Module):
         # Initial embedding
         self.linear0 = nn.Linear(2, embedding_dim)
 
-        # Batch Normalization
-        self.bn = nn.BatchNorm1d(embedding_dim, affine=False)
-        self.bn_w = nn.Parameter(nn.init.xavier_uniform_(torch.empty(1, embedding_dim)).squeeze())
-        self.bn_b = nn.Parameter(nn.init.xavier_uniform_(torch.empty(1, embedding_dim)).squeeze())
-
         # Multi-Head Attention Layers
         self.mha_layers = nn.ModuleList([
             MultiHeadAttention(embedding_dim, num_heads) for _ in range(num_layers)
@@ -69,11 +64,11 @@ class MHAEncoder(nn.Module):
         # Normalization layers
         if (normalization == "batch"):
             self.norm_layers = nn.ModuleList([
-                nn.BatchNorm1d(embedding_dim, affine=False) for _ in range(num_layers)
+                nn.BatchNorm1d(embedding_dim, affine=True) for _ in range(num_layers)
             ])
         elif (normalization == "layer"):
             self.norm_layers = nn.ModuleList([
-                nn.LayerNorm(embedding_dim, elementwise_affine=False) for _ in range(num_layers)
+                nn.LayerNorm(embedding_dim, elementwise_affine=True) for _ in range(num_layers)
             ])
         else:
             raise NotImplementedError
