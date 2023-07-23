@@ -101,9 +101,8 @@ if __name__ == '__main__':
             optimizer.zero_grad() 
             
             graph = graph.to(device)
-            target = target.to(device)
-            
             probs, outputs = model(graph)
+            
             loss = criterion(probs, target).mean()
             train_loss += loss.item()
 
@@ -121,6 +120,7 @@ if __name__ == '__main__':
         selected_plot = random.randrange(len(test_dataset))
         with torch.no_grad():
             graph, target = next(iter(test_dataloader))
+            
             graph = graph.to(device)
             target = target.to(device)
 
