@@ -44,7 +44,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class MHAEncoder(nn.Module):
-    def __init__(self, embedding_dim=128, ff_hidden_dim=512, num_layers=4, num_heads=4, drop_rate=0.0):
+    def __init__(self, embedding_dim=128, ff_hidden_dim=512, num_layers=4, num_heads=4, drop_rate=0.0, normalization="batch"):
         super().__init__()
         self.num_layers = num_layers
 
@@ -66,6 +66,18 @@ class MHAEncoder(nn.Module):
             NodeWiseFeedForward(input_dim=embedding_dim, hidden_dim=ff_hidden_dim, output_dim=embedding_dim) for _ in range(num_layers)
         ])
 
+        # Normalization layers
+        if (normalization == "batch"):
+            self.norm_layers = nn.ModuleList([
+                nn.BatchNorm1d(embedding_dim, affine=False) for _ in range(num_layers)
+            ])
+        elif (normalization == "layer"):
+            self.norm_layers = nn.ModuleList([
+                nn.LayerNorm(embedding_dim, elementwise_affine=False) for _ in range(num_layers)
+            ])
+        else:
+            raise NotImplementedError
+
         # Dropout
         self.dropout = nn.Dropout(drop_rate)
 
@@ -85,8 +97,7 @@ class MHAEncoder(nn.Module):
 
             # Batch Normalization
             h = (h_mha + h).transpose(1,2)
-            h = self.bn(h).transpose(1,2)
-            h = h * self.bn_w + self.bn_b
+            h = self.norm_layers[i](h).transpose(1,2)
 
             # Node-wise Feed Forward
             h_ff = self.ff_layers[i](h)
@@ -94,7 +105,6 @@ class MHAEncoder(nn.Module):
 
             # Batch Normalization
             h = (h_ff + h).transpose(1,2)
-            h = self.bn(h).transpose(1,2)
-            h = h * self.bn_w + self.bn_b
+            h = self.norm_layers[i](h).transpose(1,2)
 
         return h

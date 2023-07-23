@@ -18,7 +18,7 @@ from model.model import Graph2Seq
 
 # Argument
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised Graph2Seq model')
-parser.add_argument('--data_train', type=str, default='data/tsp20_test.txt', help='Path to training dataset')
+parser.add_argument('--data_train', type=str, default='data/tsp20_train.txt', help='Path to training dataset')
 parser.add_argument('--data_test', type=str, default='data/tsp20_test.txt', help='Path to validation dataset')
 parser.add_argument('--batch_size', type=int, default=20, help='input batch size for training (default: 64)')
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
