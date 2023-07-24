@@ -133,13 +133,19 @@ if __name__ == '__main__':
             fig.savefig(
                     config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch) + ".png"
                     )
-            fig.close()
+            plt.close(fig)
         # report metrics
         print(f"Epoch:{epoch+1}, Train Loss: {train_loss:.6f}, Val Loss: {test_loss:.6f}, Mean Grad Norm: {grad_norm.mean():.6f}, Learning rate: {optimizer.param_groups[0]['lr']:.6f}")
         with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([epoch+1, train_loss, test_loss, grad_norm.mean(), optimizer.param_groups[0]['lr']])
 
-        # Save model
-        torch.save(model.state_dict(), config.directory + "/model.pt")
+        # Save checkpoint
+        checkpoint = {
+                'epoch' : epoch,
+                'model' : model.state_dict(),       
+                'optimizer' : optim,
+                'lr_sched' : scheduler,
+                }
+        torch.save(checkpoint, config.directory + "/checkpoint.pt")
 
