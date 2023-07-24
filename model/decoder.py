@@ -24,18 +24,21 @@ class MHADecoder(nn.Module):
         nn.init.uniform_(self.linear_o.weight, a=0, b=1)
 
     def forward(self, context_emb, nodes_emb, mask=None):
+        batch_size = nodes_emb.shape[0]
         num_nodes = nodes_emb.shape[1]
+        node_emb_dim = nodes_emb.shape[2]
+
         # input > [1, input_dim=2]
         q, k, v = self.linear_q(context_emb), self.linear_k(nodes_emb), self.linear_v(nodes_emb)
 
         q = q.unsqueeze(1)\
-            .repeat(1, num_nodes, 1)\
-            .reshape(q.shape[0], self.num_heads, num_nodes, q.shape[1] // self.num_heads)
-        k = k.reshape(k.shape[0], self.num_heads, num_nodes, k.shape[2] // self.num_heads) # (batch_size, num_heads, graph_size, emb_per_heads)
-        v = v.reshape(v.shape[0], self.num_heads, num_nodes, v.shape[2] // self.num_heads) # (batch_size, num_heads, graph_size, emb_per_heads)
+            .repeat(1, num_nodes, 1)
+        q = q.reshape(batch_size, num_nodes, self.num_heads, node_emb_dim // self.num_heads) # (batch_size, graph_size, num_heads, emb_per_heads)
+        k = k.reshape(batch_size, num_nodes, self.num_heads, node_emb_dim // self.num_heads) # (batch_size, graph_size, num_heads, emb_per_heads)
+        v = v.reshape(batch_size, num_nodes, self.num_heads, node_emb_dim // self.num_heads) # (batch_size, num_heads, graph_size, emb_per_heads)
 
         y = ScaledDotProductAttention()(q, k, v, mask)
-        y = y.reshape(y.shape[0], y.shape[2], self.num_heads * y.shape[3])
+        y = y.reshape(batch_size, num_nodes, node_emb_dim) # Concatenate value from each head
         y = self.linear_o(y).squeeze()
 
         # Clipping within [-10, 10]

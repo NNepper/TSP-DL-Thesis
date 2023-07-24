@@ -29,22 +29,25 @@ class MultiHeadAttention(nn.Module):
         nn.init.uniform_(self.linear_v.weight, a=0, b=1)
 
     def forward(self, x, mask=None):
+        batch_size = x.shape[0]
         num_nodes = x.shape[1]
+        emb_dim = x.shape[2]
+
         # input > [1, input_dim=2]
         q, k, v = self.linear_q(x), self.linear_k(x), self.linear_v(x)
 
-        q = q.reshape(q.shape[0], self.num_heads, num_nodes, q.shape[2] // self.num_heads) # (batch_size, num_heads, graph_size, emb_per_heads)
-        k = k.reshape(k.shape[0], self.num_heads, num_nodes, k.shape[2] // self.num_heads) # (batch_size, num_heads, graph_size, emb_per_heads)
-        v = v.reshape(v.shape[0], self.num_heads, num_nodes, v.shape[2] // self.num_heads) # (batch_size, num_heads, graph_size, emb_per_heads)
+        q = q.reshape(batch_size, num_nodes, self.num_heads, emb_dim // self.num_heads) # (batch_size, num_heads, graph_size, emb_per_heads)
+        k = k.reshape(batch_size, num_nodes, self.num_heads, emb_dim // self.num_heads) # (batch_size, num_heads, graph_size, emb_per_heads)
+        v = v.reshape(batch_size, num_nodes, self.num_heads, emb_dim // self.num_heads) # (batch_size, num_heads, graph_size, emb_per_heads)
 
         y = ScaledDotProductAttention()(q, k, v, mask)
-        y = y.reshape(y.shape[0], y.shape[2], self.num_heads * y.shape[3])
+        y = y.reshape(batch_size, num_nodes, emb_dim)
 
         return y
 
 
 class MHAEncoder(nn.Module):
-    def __init__(self, embedding_dim=128, ff_hidden_dim=512, num_layers=4, num_heads=4, drop_rate=0.0, normalization="batch"):
+    def __init__(self, embedding_dim=128, ff_hidden_dim=512, num_layers=4, num_heads=4, drop_rate=0.0, normalization="batch", aggregation="sum"):
         super().__init__()
         self.num_layers = num_layers
 
@@ -76,10 +79,20 @@ class MHAEncoder(nn.Module):
         # Dropout
         self.dropout = nn.Dropout(drop_rate)
 
+        # Aggregation
+        if aggregation == "sum":
+            self.aggregation = lambda x, y : x + y
+        elif aggregation == "max":
+            self.aggregation = lambda x, y : torch.max(x, y)
+        else:
+            raise NotImplementedError
+
         # Weight Initalization
         nn.init.uniform_(self.linear0.weight, a=0, b=1)
         nn.init.uniform_(self.linear0.bias, a=0, b=1)
-
+        for i in range(num_layers):
+            nn.init.uniform_(self.norm_layers[i].weight, a=0, b=1)
+            nn.init.uniform_(self.norm_layers[i].bias, a=0, b=1)
 
     def forward(self, x):
         # Initial embedding
@@ -90,16 +103,16 @@ class MHAEncoder(nn.Module):
             h_mha = self.mha_layers[i](h)
             h_mha = self.dropout(h_mha)
 
-            # Batch Normalization
-            h = (h_mha + h).transpose(1,2)
-            h = self.norm_layers[i](h).transpose(1,2)
+            # Normalization
+            h = self.aggregation(h_mha, h)
+            h = self.norm_layers[i](h.transpose(1,2)).transpose(1,2)
 
             # Node-wise Feed Forward
             h_ff = self.ff_layers[i](h)
             h_ff = self.dropout(h_ff)
 
-            # Batch Normalization
-            h = (h_ff + h).transpose(1,2)
-            h = self.norm_layers[i](h).transpose(1,2)
+            # Normalization
+            h = self.aggregation(h_ff, h)
+            h = self.norm_layers[i](h.transpose(1,2)).transpose(1,2)
 
         return h

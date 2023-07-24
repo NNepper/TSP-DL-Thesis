@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -6,11 +7,12 @@ import math
 class ScaledDotProductAttention(nn.Module):
 
     def forward(self, query, key, value, mask=None):
-        dk = query.size()[-1]
-        scores = query.matmul(key.transpose(-2, -1)) / math.sqrt(dk)
+        num_heads = query.shape[2]
+        dk = query.shape[3]
+        scores = query.matmul(key.transpose(2,3)) / math.sqrt(dk)
         if mask is not None:
-            mask = mask.unsqueeze(1).unsqueeze(2).repeat(1, key.shape[1], key.shape[2], 1)
-            scores = scores.masked_fill(mask == 1, float('-inf'))
+            mask = mask.unsqueeze(2).unsqueeze(3).repeat(1, 1, num_heads, num_heads)
+            scores = scores.masked_fill(mask == 1, -10**6)
         attention = F.softmax(scores, dim=-1)
         return attention.matmul(value)
 
