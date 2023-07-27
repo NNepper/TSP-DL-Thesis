@@ -46,3 +46,14 @@ class NOAM():
 
         for param_group in self._optimizer.param_groups:
             param_group['lr'] = lr
+
+    def state_dict(self):
+        optim_state = self._optimizer.state_dict()
+        sched_state = {"n_steps": self.n_steps}
+
+        return {"optimizer": optim_state, "lr_sched": sched_state}
+    
+    def load_state_dict(self, state_dict):
+        self._optimizer.load_state_dict(state_dict['optimizer'])
+        self.n_steps = state_dict['lr_sched']['n_steps']
+        self._update_learning_rate()

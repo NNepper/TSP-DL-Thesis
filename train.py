@@ -83,16 +83,18 @@ if __name__ == '__main__':
         print(f"Using {torch.cuda.device_count()} GPUs !")
 
     # Optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=1, weight_decay=1e-4)
-    scheduler = NOAM(optimizer, n_warmup_steps=config.warmup_steps, d_model=config.emb_dim, lr_mul=1.)
+    scheduler = NOAM(
+        torch.optim.Adam(model.parameters(), lr=1, weight_decay=1e-4), 
+        n_warmup_steps=config.warmup_steps, 
+        d_model=config.emb_dim, 
+        lr_mul=1.)
     scheduler.step_and_update_lr()     # Overwrite initial learning rate
 
     # Load checkpoint if specified
-    if os.path.exists(config.checkpoint):
+    if config.checkpoint != None and os.path.exists(config.checkpoint):
         checkpoint = torch.load(config.checkpoint)
         epoch = checkpoint['epoch'] + 1
         model.load_state_dict(checkpoint['model'])
-        optimizer.load_state_dict(checkpoint['optimizer'])
         scheduler.load_state_dict(checkpoint['lr_sched'])
 
         print(f"Resuming training from epoch {epoch}...")
@@ -164,8 +166,7 @@ if __name__ == '__main__':
         checkpoint = {
                 'epoch' : epoch,
                 'model' : model.state_dict(),       
-                'optimizer' : optimizer,
-                'lr_sched' : scheduler,
+                'lr_sched' : scheduler.state_dict(),
                 }
-        torch.save(checkpoint, config.checkpoint)
+        torch.save(checkpoint, config.directory + "/checkpoint.pt")
 
