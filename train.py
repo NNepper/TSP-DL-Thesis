@@ -38,9 +38,10 @@ parser.add_argument('--loss', type=str, default='full', help='loss function to u
 parser.add_argument('--teacher_forcing', type=float, default=.5, help='teacher forcing ratio (default: .5)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
 parser.add_argument('--warmup_steps', type=int, default=100, help='Number of warmup steps before reducing the learning rate in the scheduler')
+parser.add_argument('--checkpoint', type=str, default=None, help='Path to a checkpoint to load weights from (default: None)')
 
 config = parser.parse_args()
-
+ 
 # Check if GPU is available
 if torch.cuda.is_available():
     device = torch.device("cuda")
@@ -86,6 +87,21 @@ if __name__ == '__main__':
     scheduler = NOAM(optimizer, n_warmup_steps=config.warmup_steps, d_model=config.emb_dim, lr_mul=1.)
     scheduler.step_and_update_lr()     # Overwrite initial learning rate
 
+    # Load checkpoint if specified
+    if os.path.exists(config.checkpoint):
+        checkpoint = torch.load(config.checkpoint)
+        epoch = checkpoint['epoch'] + 1
+        model.load_state_dict(checkpoint['model'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        scheduler.load_state_dict(checkpoint['lr_sched'])
+
+        print(f"Resuming training from epoch {epoch}...")
+
+    else:
+        # start training from epoch 0
+        epoch = 0
+        print("Starting training from scratch...")
+
     # Loss function
     if config.loss == 'negative_sampling':
         criterion = cross_entropy_negative_sampling
@@ -97,7 +113,7 @@ if __name__ == '__main__':
         raise NotImplementedError
 
     # Training loop
-    for epoch in range(config.epochs):
+    for epoch in range(epoch, config.epochs):
         model.train()
         train_loss = 0
         grad_norm = torch.zeros(len(train_dataloader))
@@ -151,5 +167,5 @@ if __name__ == '__main__':
                 'optimizer' : optimizer,
                 'lr_sched' : scheduler,
                 }
-        torch.save(checkpoint, config.directory + "/checkpoint.pt")
+        torch.save(checkpoint, config.checkpoint)
 
