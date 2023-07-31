@@ -31,7 +31,7 @@ parser.add_argument('--enc_num_layers', type=int, default=6, help='number of lay
 parser.add_argument('--enc_num_heads', type=int, default=8, help='number of Attention heads on Encoder')
 parser.add_argument('--dec_num_heads', type=int, default=8, help='number of Attention heads on Decoder')
 parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (default: .1)')
-parser.add_argument('--lr', type=float, default=.001, help='learning rate')
+parser.add_argument('--lr_mult', type=float, default=1.0, help='Learning multiplier for the NOAM schedule')      
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use (default: 2)')
 parser.add_argument('--loss', type=str, default='full', help='loss function to use (default: negative_sampling)')
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         torch.optim.Adam(model.parameters(), lr=1, weight_decay=1e-4), 
         n_warmup_steps=config.warmup_steps, 
         d_model=config.emb_dim, 
-        lr_mul=1.)
+        lr_mul=config.lr_mult)
     scheduler.step_and_update_lr()     # Overwrite initial learning rate
 
     # Load checkpoint if specified
