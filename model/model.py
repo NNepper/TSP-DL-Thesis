@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import numpy as np
+
 from model.encoder import MHAEncoder
 from model.decoder import MHADecoder
 
@@ -38,9 +40,12 @@ class Graph2Seq(nn.Module):
         self.token_1 = nn.Parameter(self.token_1)
         self.token_f = nn.Parameter(self.token_f)
 
-    def forward(self, x, target, loss_criterion, teacher_forcing_ratio=0.0):
+    def forward(self, x, target, loss_criterion, teacher_forcing_constant=0.0):
         batch_size = x.shape[0]
         tours = torch.zeros(batch_size, self.graph_size).to(x.device, non_blocking=True)
+
+        # Initial Teacher forcing schedule
+        self.teacher_forcing_schedule = [teacher_forcing_constant / (teacher_forcing_constant + np.exp(i / teacher_forcing_constant)) for i in range(self.graph_size)]
 
         # Move initial token to same device as input
         self.token_1 = self.token_1.to(x.device, non_blocking=True)
@@ -73,7 +78,7 @@ class Graph2Seq(nn.Module):
             # Prepare input for next timestep
             for j in range(batch_size):
                 # Teacher forcing
-                if torch.rand(1).item() < teacher_forcing_ratio and target is not None:
+                if torch.rand(1).item() < self.teacher_forcing_schedule[i] and target is not None:
                     dec_idx[j] = target[j, i]
 
                 mask[j, dec_idx[j]] = 1.
