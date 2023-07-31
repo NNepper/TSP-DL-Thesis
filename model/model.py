@@ -40,12 +40,15 @@ class Graph2Seq(nn.Module):
         self.token_1 = nn.Parameter(self.token_1)
         self.token_f = nn.Parameter(self.token_f)
 
-    def forward(self, x, target, loss_criterion, teacher_forcing_constant=0.0):
+    def forward(self, x, target, loss_criterion, teacher_forcing_constant=None):
         batch_size = x.shape[0]
         tours = torch.zeros(batch_size, self.graph_size).to(x.device, non_blocking=True)
 
         # Initial Teacher forcing schedule
-        self.teacher_forcing_schedule = [teacher_forcing_constant / (teacher_forcing_constant + np.exp(i / teacher_forcing_constant)) for i in range(self.graph_size)]
+        if teacher_forcing_constant == None:
+            self.teacher_forcing_schedule = [0.0 for i in range(self.graph_size)]
+        else: 
+            self.teacher_forcing_schedule = [teacher_forcing_constant / (teacher_forcing_constant + np.exp(i / teacher_forcing_constant)) for i in range(self.graph_size)]
 
         # Move initial token to same device as input
         self.token_1 = self.token_1.to(x.device, non_blocking=True)
