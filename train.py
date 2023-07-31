@@ -124,7 +124,7 @@ if __name__ == '__main__':
 
             graph = graph.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
-            probs, tours, loss = model(graph, target, teacher_forcing_ratio=config.teacher_forcing, loss_criterion=criterion)
+            probs, tours, loss = model(graph, target, teacher_forcing_constant=config.teacher_forcing_constant, loss_criterion=criterion)
             
             loss.mean().backward()
             train_loss += loss.mean().item()
@@ -145,7 +145,7 @@ if __name__ == '__main__':
             graph = graph.to(device)
             target = target.to(device)
 
-            probs, outputs, loss = model(graph, target, teacher_forcing_ratio=0.0, loss_criterion=criterion)
+            probs, outputs, loss = model(graph, target, teacher_forcing_constant=0.0, loss_criterion=criterion)
 
             test_loss = loss.mean()
 
