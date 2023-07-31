@@ -145,7 +145,7 @@ if __name__ == '__main__':
             graph = graph.to(device)
             target = target.to(device)
 
-            probs, outputs, loss = model(graph, target, teacher_forcing_constant=0.0, loss_criterion=criterion)
+            probs, outputs, loss = model(graph, target, teacher_forcing_constant=None, loss_criterion=criterion)
 
             test_loss = loss.mean()
 
