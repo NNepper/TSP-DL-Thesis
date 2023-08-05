@@ -5,7 +5,6 @@ import random
 import csv
 
 import torch
-from torch.optim.lr_scheduler import ExponentialLR;
 from torch.utils.data import DataLoader
 
 import numpy as np
@@ -13,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from common.loss import cross_entropy, cross_entropy_negative_sampling, cross_entropy_full
-from common.scheduler import NOAM
+from common.scheduler import CosineWarmup
 from common.visualization import draw_solution_graph
 from data.dataset import TSPDataset
 from model.model import Graph2Seq
@@ -31,11 +30,11 @@ parser.add_argument('--enc_num_layers', type=int, default=6, help='number of lay
 parser.add_argument('--enc_num_heads', type=int, default=8, help='number of Attention heads on Encoder')
 parser.add_argument('--dec_num_heads', type=int, default=8, help='number of Attention heads on Decoder')
 parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (default: .1)')
-parser.add_argument('--lr_mult', type=float, default=1.0, help='Learning multiplier for the NOAM schedule')      
+parser.add_argument('--lr', type=float, default=0.01, help='Learning multiplier for the NOAM schedule')      
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use (default: 2)')
 parser.add_argument('--loss', type=str, default='full', help='loss function to use (default: negative_sampling)')
-parser.add_argument('--teacher_forcing_constant', type=float, default=0.0, help='teacher forcing constant, larger increase teacher forcing in the schedule (default: 0.0, no teacher forcing)')
+parser.add_argument('--teacher_forcing_constant', type=float, default=2.0, help='teacher forcing constant, larger increase teacher forcing in the schedule (default: 0.0, no teacher forcing)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
 parser.add_argument('--warmup_steps', type=int, default=100, help='Number of warmup steps before reducing the learning rate in the scheduler')
 parser.add_argument('--checkpoint', type=str, default=None, help='Path to a checkpoint to load weights from (default: None)')
@@ -77,17 +76,17 @@ if __name__ == '__main__':
     test_dataset = TSPDataset(config.data_test, config.num_nodes)
     test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False, pin_memory=True, num_workers=0)
 
-    # Multi-GPU support
+    # Multi-GPU sup'port
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
         print(f"Using {torch.cuda.device_count()} GPUs !")
 
     # Optimizer
-    scheduler = NOAM(
-        torch.optim.Adam(model.parameters(), lr=1, weight_decay=1e-4), 
+    scheduler = CosineWarmup(
+        torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=0.0), 
         n_warmup_steps=config.warmup_steps, 
-        d_model=config.emb_dim, 
-        lr_mul=config.lr_mult)
+        max_steps=config.epochs * len(train_dataloader)
+    )
     scheduler.step_and_update_lr()     # Overwrite initial learning rate
 
     # Load checkpoint if specified
