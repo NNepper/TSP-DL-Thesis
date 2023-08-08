@@ -111,7 +111,6 @@ if __name__ == '__main__':
         train_loss = 0
         grad_norm = torch.zeros(len(train_dataloader))
         for i, (graph, target) in enumerate(train_dataloader):
-            print(f"Epoch {epoch} - Batch {i}/{len(train_dataloader)}", end='\r')
             optimizer.zero_grad()
 
             graph = graph.to(device, non_blocking=True)
