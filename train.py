@@ -6,6 +6,7 @@ import csv
 import math
 
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 
 import numpy as np
@@ -84,7 +85,7 @@ if __name__ == '__main__':
 
     # Multi-GPU sup'port
     if torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
+        model = nn.DataParallel(model)  # Wrap the model with DataParallel
         print(f"Using {torch.cuda.device_count()} GPUs !")
 
     # Optimizer
@@ -126,6 +127,8 @@ if __name__ == '__main__':
             loss = loss.mean()
             loss.backward()
             train_loss += loss.item()
+
+            nn.utils.clip_grad_norm_(model.parameters(), 5)  # Clip gradients
 
             # Gradient norm
             if config.log: 
