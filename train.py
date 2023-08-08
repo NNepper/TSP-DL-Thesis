@@ -3,6 +3,7 @@ import argparse
 import os
 import random
 import csv
+import math
 
 import torch
 from torch.utils.data import DataLoader
@@ -19,9 +20,9 @@ from model.model import Graph2Seq
 
 # Argument
 parser = argparse.ArgumentParser(description='TSP Solver using Supervised Graph2Seq model')
-parser.add_argument('--data_train', type=str, default='data/tsp20_test.txt', help='Path to training dataset')
+parser.add_argument('--data_train', type=str, default='tsp20_train_small.txt', help='Path to training dataset')
 parser.add_argument('--data_test', type=str, default='data/tsp20_test.txt', help='Path to validation dataset')
-parser.add_argument('--batch_size', type=int, default=20, help='input batch size for training (default: 64)')
+parser.add_argument('--batch_size', type=int, default=512, help='input batch size for training (default: 64)')
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
 parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
 parser.add_argument('--emb_dim', type=int, default=512, help='Size of the embedding vector (default: 128)')
@@ -30,13 +31,12 @@ parser.add_argument('--enc_num_layers', type=int, default=6, help='number of lay
 parser.add_argument('--enc_num_heads', type=int, default=8, help='number of Attention heads on Encoder')
 parser.add_argument('--dec_num_heads', type=int, default=8, help='number of Attention heads on Decoder')
 parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (default: .1)')
-parser.add_argument('--lr', type=float, default=0.01, help='Learning multiplier for the NOAM schedule')      
+parser.add_argument('--lr', type=float, default=0.0001, help='Learning multiplier for the NOAM schedule')      
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use (default: 2)')
 parser.add_argument('--loss', type=str, default='full', help='loss function to use (default: negative_sampling)')
 parser.add_argument('--teacher_forcing_constant', type=float, default=2.0, help='teacher forcing constant, larger increase teacher forcing in the schedule (default: 0.0, no teacher forcing)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-parser.add_argument('--warmup_steps', type=int, default=100, help='Number of warmup steps before reducing the learning rate in the scheduler')
 parser.add_argument('--checkpoint', type=str, default=None, help='Path to a checkpoint to load weights from (default: None)')
 
 config = parser.parse_args()
@@ -82,22 +82,14 @@ if __name__ == '__main__':
         print(f"Using {torch.cuda.device_count()} GPUs !")
 
     # Optimizer
-    scheduler = CosineWarmup(
-        torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=0.0), 
-        n_warmup_steps=config.warmup_steps, 
-        max_steps=config.epochs * len(train_dataloader)
-    )
-    scheduler.step_and_update_lr()     # Overwrite initial learning rate
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
     # Load checkpoint if specified
     if config.checkpoint != None and os.path.exists(config.checkpoint):
         checkpoint = torch.load(config.checkpoint)
         epoch = checkpoint['epoch'] + 1
         model.load_state_dict(checkpoint['model'])
-        scheduler.load_state_dict(checkpoint['lr_sched'])
-
         print(f"Resuming training from epoch {epoch}...")
-
     else:
         # start training from epoch 0
         epoch = 0
@@ -119,7 +111,8 @@ if __name__ == '__main__':
         train_loss = 0
         grad_norm = torch.zeros(len(train_dataloader))
         for i, (graph, target) in enumerate(train_dataloader):
-            scheduler.zero_grad()
+            print(f"Epoch {epoch} - Batch {i}/{len(train_dataloader)}", end='\r')
+            optimizer.zero_grad()
 
             graph = graph.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
@@ -128,9 +121,9 @@ if __name__ == '__main__':
             loss.mean().backward()
             train_loss += loss.mean().item()
             
-            grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 10).item()       
+            grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 5).item()       
 
-            scheduler.step_and_update_lr()     # Update the learning rate following schedule
+            optimizer.step()     # Update parameters
 
         train_loss /= len(train_dataloader)
 
@@ -156,16 +149,15 @@ if __name__ == '__main__':
                     config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch) + ".png")
             plt.close(fig)
         # report metrics
-        print(f"Epoch:{epoch+1}, Train Loss: {train_loss:.6f}, Val Loss: {test_loss:.6f}, Mean Grad Norm: {grad_norm.mean():.6f}, Learning rate: {scheduler.get_lr():.6f}")
+        print(f"Epoch:{epoch+1}, Train Loss: {train_loss:.6f}, Val Loss: {test_loss:.6f}, Mean Grad Norm: {grad_norm.mean():.6f}, Learning rate: {optimizer.param_groups[0]['lr']:.6f}")
         with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow([epoch+1, train_loss, test_loss, grad_norm.mean(), scheduler.get_lr()])
+            writer.writerow([epoch+1, train_loss, test_loss, grad_norm.mean(), optimizer.param_groups[0]["lr"]])
 
         # Save checkpoint
         checkpoint = {
                 'epoch' : epoch,
-                'model' : model.state_dict(),       
-                'lr_sched' : scheduler.state_dict(),
+                'model' : model.state_dict(),
                 }
         torch.save(checkpoint, config.directory + "/checkpoint.pt")
 
