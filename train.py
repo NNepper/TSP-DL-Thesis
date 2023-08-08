@@ -161,9 +161,9 @@ if __name__ == '__main__':
             plt.close(fig)
         # report metrics
         print(f"Epoch:{epoch+1}, Train Loss: {train_loss:.6f}, Val Loss: {test_loss:.6f}, grad_norm_std, {grad_norm.std():.10f}, grad_norm_mean, {grad_norm.mean():.10f}, grad_norm_range: [{grad_norm.min():.10f},{grad_norm.max():.10f}], Learning rate: {optimizer.param_groups[0]['lr']:.6f}")
-        with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow([epoch+1, train_loss, test_loss, optimizer.param_groups[0]["lr"]])
+        with open(config.directory + "/metrics_validation.csv", 'w', newline='') as csv_val:
+            writer_val = csv.writer(csv_val)
+            writer_val.writerow([epoch+1, train_loss, test_loss, optimizer.param_groups[0]["lr"]])
 
         # Save checkpoint
         checkpoint = {
@@ -171,4 +171,3 @@ if __name__ == '__main__':
                 'model' : model.state_dict(),
                 }
         torch.save(checkpoint, config.directory + "/checkpoint.pt")
-

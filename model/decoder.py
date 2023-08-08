@@ -18,10 +18,10 @@ class MHADecoder(nn.Module):
         self.num_heads = num_heads
 
         # Weight Initalization
-        nn.init.uniform_(self.linear_q.weight, a=0, b=1)
-        nn.init.uniform_(self.linear_k.weight, a=0, b=1)
-        nn.init.uniform_(self.linear_v.weight, a=0, b=1)
-        nn.init.uniform_(self.linear_o.weight, a=0, b=1)
+        nn.init.xavier_uniform_(self.linear_q.weight)
+        nn.init.xavier_uniform_(self.linear_k.weight)
+        nn.init.xavier_uniform_(self.linear_v.weight)
+        nn.init.xavier_uniform_(self.linear_o.weight)
 
     def forward(self, context_emb, nodes_emb, mask=None):
         batch_size = nodes_emb.shape[0]
@@ -66,10 +66,10 @@ class TransformerDecoder(nn.Module):
         self.num_heads = num_heads
 
         # Weight Initalization
-        nn.init.uniform_(self.linear_q.weight, a=0, b=1)
-        nn.init.uniform_(self.linear_k.weight, a=0, b=1)
-        nn.init.uniform_(self.linear_v.weight, a=0, b=1)
-        nn.init.uniform_(self.linear_o.weight, a=0, b=1)
+        nn.init.xavier_uniform_(self.linear_q.weight)
+        nn.init.xavier_uniform_(self.linear_k.weight)
+        nn.init.xavier_uniform_(self.linear_v.weight)
+        nn.init.xavier_uniform_(self.linear_o.weight)
 
     def forward(self, nodes_embs):
         raise NotImplemented

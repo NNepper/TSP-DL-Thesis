@@ -17,10 +17,9 @@ class MultiHeadAttention(nn.Module):
         self.num_heads = num_heads
 
         # Weight Initalization
-        nn.init.uniform_(self.linear_q.weight, a=0, b=1)
-        nn.init.uniform_(self.linear_k.weight, a=0, b=1)
-        nn.init.uniform_(self.linear_v.weight, a=0, b=1)
-
+        nn.init.xavier_uniform_(self.linear_q.weight)
+        nn.init.xavier_uniform_(self.linear_k.weight)
+        nn.init.xavier_uniform_(self.linear_v.weight)
     def forward(self, x, mask=None):
         batch_size = x.shape[0]
         num_nodes = x.shape[1]
@@ -68,10 +67,10 @@ class MHAEncoder(nn.Module):
             ])
         elif (normalization == "layer"):
             self.norm_layers1 = nn.ModuleList([
-                nn.LayerNorm(embedding_dim, elementwise_affine=True) for _ in range(num_layers)
+                nn.LayerNorm(embedding_dim, elementwise_affine=False) for _ in range(num_layers)
             ])
             self.norm_layers2 = nn.ModuleList([
-                nn.LayerNorm(embedding_dim, elementwise_affine=True) for _ in range(num_layers)
+                nn.LayerNorm(embedding_dim, elementwise_affine=False) for _ in range(num_layers)
             ])
         else:
             raise NotImplementedError
@@ -88,13 +87,8 @@ class MHAEncoder(nn.Module):
             raise NotImplementedError
 
         # Weight Initalization
-        nn.init.uniform_(self.linear0.weight, a=0, b=1)
-        nn.init.uniform_(self.linear0.bias, a=0, b=1)
-        for i in range(num_layers):
-            nn.init.uniform_(self.norm_layers1[i].weight, a=0, b=1)
-            nn.init.uniform_(self.norm_layers1[i].bias, a=0, b=1)
-            nn.init.uniform_(self.norm_layers2[i].weight, a=0, b=1)
-            nn.init.uniform_(self.norm_layers2[i].bias, a=0, b=1)
+        nn.init.uniform_(self.linear0.weight)
+        nn.init.uniform_(self.linear0.bias)
 
     def forward(self, x):
         # Initial embedding
