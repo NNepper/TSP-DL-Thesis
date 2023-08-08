@@ -3,13 +3,6 @@ import torch.nn as nn
 
 from model.layers import ScaledDotProductAttention, NodeWiseFeedForward
 
-class GATEncoder(nn.Module):
-    def __init__(self, hidden_dim, drop_rate=0.0, num_layers=4, num_heads=4):
-        super().__init__()
-        
-    def forward(self, x, edge_index, edge_attr):
-        raise(NotImplementedError)
-
 class MultiHeadAttention(nn.Module):
     def __init__(self, input_dim, num_heads=8):
         super().__init__()
@@ -65,12 +58,19 @@ class MHAEncoder(nn.Module):
         ])
 
         # Normalization layers
+        self.normalization = normalization
         if (normalization == "batch"):
-            self.norm_layers = nn.ModuleList([
+            self.norm_layers1 = nn.ModuleList([
+                nn.BatchNorm1d(embedding_dim, affine=True) for _ in range(num_layers)
+            ])
+            self.norm_layers2 = nn.ModuleList([
                 nn.BatchNorm1d(embedding_dim, affine=True) for _ in range(num_layers)
             ])
         elif (normalization == "layer"):
-            self.norm_layers = nn.ModuleList([
+            self.norm_layers1 = nn.ModuleList([
+                nn.LayerNorm(embedding_dim, elementwise_affine=True) for _ in range(num_layers)
+            ])
+            self.norm_layers2 = nn.ModuleList([
                 nn.LayerNorm(embedding_dim, elementwise_affine=True) for _ in range(num_layers)
             ])
         else:
@@ -91,8 +91,10 @@ class MHAEncoder(nn.Module):
         nn.init.uniform_(self.linear0.weight, a=0, b=1)
         nn.init.uniform_(self.linear0.bias, a=0, b=1)
         for i in range(num_layers):
-            nn.init.uniform_(self.norm_layers[i].weight, a=0, b=1)
-            nn.init.uniform_(self.norm_layers[i].bias, a=0, b=1)
+            nn.init.uniform_(self.norm_layers1[i].weight, a=0, b=1)
+            nn.init.uniform_(self.norm_layers1[i].bias, a=0, b=1)
+            nn.init.uniform_(self.norm_layers2[i].weight, a=0, b=1)
+            nn.init.uniform_(self.norm_layers2[i].bias, a=0, b=1)
 
     def forward(self, x):
         # Initial embedding
@@ -105,7 +107,10 @@ class MHAEncoder(nn.Module):
 
             # Normalization
             h = self.aggregation(h_mha, h)
-            h = self.norm_layers[i](h.transpose(1,2)).transpose(1,2)
+            if self.normalization == "batch":
+                h = self.norm_layers1[i](h.transpose(1,2)).transpose(1,2)
+            else:
+                h = self.norm_layers1[i](h)
 
             # Node-wise Feed Forward
             h_ff = self.ff_layers[i](h)
@@ -113,6 +118,9 @@ class MHAEncoder(nn.Module):
 
             # Normalization
             h = self.aggregation(h_ff, h)
-            h = self.norm_layers[i](h.transpose(1,2)).transpose(1,2)
+            if self.normalization == "batch":
+                h = self.norm_layers2[i](h.transpose(1,2)).transpose(1,2)
+            else:
+                h = self.norm_layers2[i](h)
 
         return h

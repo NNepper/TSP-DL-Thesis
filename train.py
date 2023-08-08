@@ -38,7 +38,8 @@ parser.add_argument('--loss', type=str, default='full', help='loss function to u
 parser.add_argument('--teacher_forcing_constant', type=float, default=2.0, help='teacher forcing constant, larger increase teacher forcing in the schedule (default: 0.0, no teacher forcing)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
 parser.add_argument('--checkpoint', type=str, default=None, help='Path to a checkpoint to load weights from (default: None)')
-
+parser.add_argument('--log', type=bool, default=True, help='Log the training (default: False)')
+parser.add_argument('--norm_layer', type=str, default='batch', help='Normalization layer to use (Batch, Layer)')
 config = parser.parse_args()
  
 # Check if GPU is available
@@ -53,9 +54,13 @@ else:
 if not os.path.exists(config.directory):
     os.makedirs(config.directory)
 
-with open(config.directory + "/metrics.csv", 'w', newline='') as csvfile:
-    writer = csv.writer(csvfile)
-    writer.writerow(["Epoch", "train_loss", "test_loss", "mean_grad_norm", "learning_rate"])
+with open(config.directory + "/metrics_validation.csv", 'w', newline='') as csv_val:
+    writer_val = csv.writer(csv_val)
+    writer_val.writerow(["Epoch", "Train_loss", "Test_loss", "Learning_rate"])
+
+with open(config.directory + "/metrics_gradient.csv", 'w', newline='') as csv_grad:
+    writer_grad = csv.writer(csv_grad)
+    writer_grad.writerow(["Epoch", "Step", "Train_loss", "Gradient_norm", "Gradient_mean", "Gradient_std", "Gradient_max", "Gradient_min"])
 
 if __name__ == '__main__':
     # Model definition
@@ -68,6 +73,7 @@ if __name__ == '__main__':
         enc_num_head=config.enc_num_heads,
         graph_size=config.num_nodes,
         drop_rate=config.drop_rate,
+        normalization=config.norm_layer
     ).to(device)
 
     # Data importing
@@ -106,10 +112,10 @@ if __name__ == '__main__':
         raise NotImplementedError
 
     # Training loop
+    grad_norm = torch.zeros(len(train_dataloader), len(list(model.parameters())))
     for epoch in range(epoch, config.epochs):
         model.train()
         train_loss = 0
-        grad_norm = torch.zeros(len(train_dataloader))
         for i, (graph, target) in enumerate(train_dataloader):
             optimizer.zero_grad()
 
@@ -117,10 +123,16 @@ if __name__ == '__main__':
             target = target.to(device, non_blocking=True)
             probs, tours, loss = model(graph, target, teacher_forcing_constant=config.teacher_forcing_constant, loss_criterion=criterion)
             
-            loss.mean().backward()
-            train_loss += loss.mean().item()
-            
-            grad_norm[i] = torch.nn.utils.clip_grad_norm_(model.parameters(), 5).item()       
+            loss = loss.mean()
+            loss.backward()
+            train_loss += loss.item()
+
+            # Gradient norm
+            if config.log: 
+                grad_norm[i,:] = torch.stack([torch.norm(p.grad.detach()) for p in model.parameters()])
+                with open(config.directory + "/metrics_gradient.csv", 'a', newline='') as csv_grad:
+                    writer_grad = csv.writer(csv_grad)
+                    writer_grad.writerow([epoch+1, i+1, loss.item(), grad_norm[i].mean().item(), grad_norm[i].std().item(), grad_norm[i].max().item(), grad_norm[i].min().item()])
 
             optimizer.step()     # Update parameters
 
@@ -148,10 +160,10 @@ if __name__ == '__main__':
                     config.directory + "/G2S_" + str(config.num_nodes) + "_plot" + str(epoch) + ".png")
             plt.close(fig)
         # report metrics
-        print(f"Epoch:{epoch+1}, Train Loss: {train_loss:.6f}, Val Loss: {test_loss:.6f}, Mean Grad Norm: {grad_norm.mean():.6f}, Learning rate: {optimizer.param_groups[0]['lr']:.6f}")
+        print(f"Epoch:{epoch+1}, Train Loss: {train_loss:.6f}, Val Loss: {test_loss:.6f}, grad_norm_std, {grad_norm.std():.10f}, grad_norm_mean, {grad_norm.mean():.10f}, grad_norm_range: [{grad_norm.min():.10f},{grad_norm.max():.10f}], Learning rate: {optimizer.param_groups[0]['lr']:.6f}")
         with open(config.directory + "/metrics.csv", 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow([epoch+1, train_loss, test_loss, grad_norm.mean(), optimizer.param_groups[0]["lr"]])
+            writer.writerow([epoch+1, train_loss, test_loss, optimizer.param_groups[0]["lr"]])
 
         # Save checkpoint
         checkpoint = {

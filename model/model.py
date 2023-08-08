@@ -18,6 +18,7 @@ class Graph2Seq(nn.Module):
                  dec_emb_dim: int,
                  dec_num_heads: int,
                  drop_rate: int = 0.1,
+                 normalization: str = "batch",
                  ):
         super().__init__()
 
@@ -29,8 +30,14 @@ class Graph2Seq(nn.Module):
         self.enc_num_heads = enc_num_head
         self.dec_emb_dim = dec_emb_dim
         self.dec_num_heads = dec_num_heads
-        self.encoder = MHAEncoder(embedding_dim=enc_emb_dim, ff_hidden_dim=enc_hid_dim, num_layers=self.enc_num_layers, num_heads=self.enc_num_heads, drop_rate=drop_rate)
-        self.decoder = MHADecoder(embedding_dim=dec_emb_dim, num_heads=dec_num_heads)
+        self.encoder = MHAEncoder(embedding_dim=enc_emb_dim, 
+                                  ff_hidden_dim=enc_hid_dim, 
+                                  num_layers=self.enc_num_layers, 
+                                  num_heads=self.enc_num_heads, 
+                                  drop_rate=drop_rate, 
+                                  normalization=normalization)
+        self.decoder = MHADecoder(embedding_dim=dec_emb_dim, 
+                                  num_heads=dec_num_heads)
 
         # Initial token
         self.token_1 = torch.zeros(enc_emb_dim)
