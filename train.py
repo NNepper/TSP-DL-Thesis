@@ -153,7 +153,7 @@ if __name__ == '__main__':
 
             probs, outputs, loss = model(graph, target, teacher_forcing_constant=None, loss_criterion=criterion)
 
-            test_loss = loss.mean()
+            test_loss = loss.mean().item()
 
             fig = draw_solution_graph(
                 graph[selected_plot].cpu().detach().numpy(), 
