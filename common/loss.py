@@ -12,7 +12,6 @@ def cross_entropy(predictions, solutions):
         for j, u in enumerate(tour):
             v = tour[(j + 1) % len(tour)] 
             loss[i] -= torch.log(torch.clamp(predictions[i, u, v], min=1e-6))
-            loss[i] -= torch.log(torch.clamp(predictions[i, v, u], min=1e-6))
     return loss
 
 
@@ -33,7 +32,6 @@ def cross_entropy_negative_sampling(predictions, solutions, n_neg=5):
         for j, u in enumerate(tour):
             v = tour[(j + 1) % len(tour)]
             loss[i] -= torch.log(torch.clamp(predictions[i, u, v], min=1e-6))
-            loss[i] -= torch.log(torch.clamp(predictions[i, v, u], min=1e-6))
 
     # Compute the false edges term (neg_sampling)
     for i, tour in enumerate(solutions):
