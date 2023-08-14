@@ -9,12 +9,12 @@ class ScaledDotProductAttention(nn.Module):
     def forward(self, query, key, value, mask=None):
         num_heads = query.shape[2]
         dk = query.shape[3]
-        scores = query.matmul(key.transpose(2,3)) / math.sqrt(dk)
+        scores = (query @ key.transpose(2,3)) / math.sqrt(dk)
         if mask is not None:
             mask = mask.unsqueeze(2).unsqueeze(3).repeat(1, 1, num_heads, num_heads)
             scores = scores.masked_fill(mask == 1, -10**6)
         attention = F.softmax(scores, dim=-1)
-        return attention.matmul(value)
+        return attention @ value
 
 
 class NodeWiseFeedForward(nn.Module):

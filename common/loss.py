@@ -39,7 +39,6 @@ def cross_entropy_negative_sampling(predictions, solutions, n_neg=5):
             for v in random.sample(range(0, len(tour)), n_neg):
                 if v != tour[(j + 1) % len(tour)]:
                     loss[i] -= torch.log(1 - torch.clamp(predictions[i, u, v], min=1e-6, max=1 - 1e-6))
-
     return loss
 
 def cross_entropy_full(probabilities, solutions):
@@ -59,8 +58,6 @@ def cross_entropy_full(probabilities, solutions):
     return loss
 
     
-
-
 def policy_gradient_loss(batch_pi, batch_distances, opt_length):
     """
     The policy_gradient_loss function takes in a batch of predicted tours and the optimal tour lengths,
