@@ -29,7 +29,7 @@ class MHADecoder(nn.Module):
         node_emb_dim = nodes_emb.shape[2]
 
         # First MHA
-        q, k, v = self.linear_q1(context_emb), self.linear_k1(nodes_emb), self.linear_v1(nodes_emb)
+        q, k, v = self.linear_q(context_emb), self.linear_k(nodes_emb), self.linear_v(nodes_emb)
 
         q = q.unsqueeze(1)\
             .repeat(1, num_nodes, 1)
