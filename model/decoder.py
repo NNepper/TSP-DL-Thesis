@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -7,10 +8,12 @@ class MHADecoder(nn.Module):
     def __init__(self, embedding_dim, num_heads=8):
         super().__init__()
     
-        self.linear_q = nn.Linear(3 * embedding_dim, embedding_dim)  # Query (Context embedding)
-        self.linear_k = nn.Linear(embedding_dim, embedding_dim)      # Key (Nodes embedding)
-        self.linear_v = nn.Linear(embedding_dim, embedding_dim)      # Value (Nodes embedding)
-        self.linear_o = nn.Linear(embedding_dim, 1)
+        self.linear_q1 = nn.Linear(3 * embedding_dim, embedding_dim)  # Query (Context embedding)
+        self.linear_k1 = nn.Linear(embedding_dim, embedding_dim)      # Key (Nodes embedding)
+        self.linear_v1 = nn.Linear(embedding_dim, embedding_dim)      # Value (Nodes embedding)
+
+        self.linear_q2 = nn.Linear(embedding_dim, embedding_dim)  # Query (Updated Context embedding)
+        self.linear_k2 = nn.Linear(embedding_dim, embedding_dim)  # Key (Nodes embedding)
 
         self.tanh = nn.Tanh()
         self.softmax = nn.Softmax(dim=1)
@@ -18,10 +21,11 @@ class MHADecoder(nn.Module):
         self.num_heads = num_heads
 
         # Weight Initalization
-        nn.init.xavier_uniform_(self.linear_q.weight)
-        nn.init.xavier_uniform_(self.linear_k.weight)
-        nn.init.xavier_uniform_(self.linear_v.weight)
-        nn.init.xavier_uniform_(self.linear_o.weight)
+        nn.init.xavier_uniform_(self.linear_q1.weight)
+        nn.init.xavier_uniform_(self.linear_k1.weight)
+        nn.init.xavier_uniform_(self.linear_v1.weight)
+        nn.init.xavier_uniform_(self.linear_q2.weight)
+        nn.init.xavier_uniform_(self.linear_k2.weight)
 
     def forward(self, context_emb, nodes_emb, mask=None):
         batch_size = nodes_emb.shape[0]
@@ -29,7 +33,7 @@ class MHADecoder(nn.Module):
         node_emb_dim = nodes_emb.shape[2]
 
         # First MHA
-        q, k, v = self.linear_q(context_emb), self.linear_k(nodes_emb), self.linear_v(nodes_emb)
+        q, k, v = self.linear_q1(context_emb), self.linear_k1(nodes_emb), self.linear_v1(nodes_emb)
 
         q = q.unsqueeze(1)\
             .repeat(1, num_nodes, 1)
@@ -39,8 +43,12 @@ class MHADecoder(nn.Module):
 
         y = ScaledDotProductAttention()(q, k, v, mask)
         y = y.reshape(batch_size, num_nodes, node_emb_dim) # Concatenate value from each head
-        
-        y = self.linear_o(y).squeeze()
+        y = y[:,0,:]    # Every other element on the first dimension are equals (because same context tensor)
+
+        # Second MHA.repeat(1, num_nodes, 1)
+        y = y.unsqueeze(1)
+        q, k = self.linear_q2(y), self.linear_k2(nodes_emb)
+        y = torch.einsum('ikj,ilj->ilk', q, k).squeeze() / (node_emb_dim ** 0.5)
         # Clipping within [-10, 10]
         y = 10 * self.tanh(y)
 
