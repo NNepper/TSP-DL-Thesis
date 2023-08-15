@@ -18,11 +18,10 @@ class MHADecoder(nn.Module):
         self.num_heads = num_heads
 
         # Weight Initalization
-        nn.init.xavier_uniform_(self.linear_q1.weight)
-        nn.init.xavier_uniform_(self.linear_k1.weight)
-        nn.init.xavier_uniform_(self.linear_v1.weight)
-        nn.init.xavier_uniform_(self.linear_q2.weight)
-        nn.init.xavier_uniform_(self.linear_k2.weight)
+        nn.init.xavier_uniform_(self.linear_q.weight)
+        nn.init.xavier_uniform_(self.linear_k.weight)
+        nn.init.xavier_uniform_(self.linear_v.weight)
+        nn.init.xavier_uniform_(self.linear_o.weight)
 
     def forward(self, context_emb, nodes_emb, mask=None):
         batch_size = nodes_emb.shape[0]
