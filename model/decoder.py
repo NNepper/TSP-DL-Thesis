@@ -42,14 +42,8 @@ class MHADecoder(nn.Module):
 
         y = ScaledDotProductAttention()(q, k, v, mask)
         y = y.reshape(batch_size, num_nodes, node_emb_dim) # Concatenate value from each head
-        y = y[:,0,:]    # Every other element on the first dimension are equals (because same context tensor)
-
-        # Second MHA
-        y = y.unsqueeze(1).repeat(1, num_nodes, 1)
-        q, k = self.linear_q2(y), self.linear_k2(nodes_emb)
-        y = q @ k.transpose(1, 2) / (node_emb_dim ** 0.5)
-        y = y[:,0,:]
-
+        
+        y = self.linear_o(y).squeeze()
         # Clipping within [-10, 10]
         y = 10 * self.tanh(y)
 
