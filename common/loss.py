@@ -5,6 +5,13 @@ import torch.nn as nn
 
 
 def cross_entropy(predictions, solutions):
+    """
+    The cross_entropy function computes the cross entropy loss for a batch of tours.
+
+    :param prediction: The probability of each edge in the predicted tour
+    :param solutions: The optimal tour for each graph in the batch
+    :return: The loss of each tour in the batch
+    """
     loss = torch.zeros(predictions.shape[0]).float().to(predictions.device, non_blocking=True)
     # Compute the true edges term
     for i, tour in enumerate(solutions):
@@ -42,12 +49,20 @@ def cross_entropy_negative_sampling(predictions, solutions, n_neg=5):
     return loss
 
 def cross_entropy_full(probabilities, solutions):
+    """
+    The cross_entropy_full function computes the cross entropy loss for a batch of tour
+    over the entire probability distribution.
+
+    :param prediction: The probability of each edge in the predicted tour
+    :param solutions: The optimal tour for each graph in the batch
+    :return: The loss of each tour in the batch
+    """
     batch_size, num_nodes = solutions.size()
     target = torch.zeros(batch_size, num_nodes, num_nodes).float()
     
     for i in range(batch_size):
         for j in range(num_nodes):
-            target[i,j,solutions[i,(j+1)%num_nodes]] = 1
+            target[i,j,solutions[i,j]] = 1
 
     # Ravel the target and log_probabilities tensors
     target = target.view(batch_size, num_nodes * num_nodes).to(probabilities.device, non_blocking=True)

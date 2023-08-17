@@ -2,7 +2,9 @@ import random
 
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.colors import Normalize
 
+from common.utils import compute_optimality_gap
 
 def correlation_weight_distance(edges_probabilities, edges_distances):
     edges_correlation = np.correlate(edges_probabilities, edges_distances)
@@ -29,7 +31,7 @@ def plot_performance(tour_lenghts: np.array):
 def draw_tour_graph(ax, nodes, tour, color="red"):
     # draw nodes
     for i in range(len(nodes)):
-        ax.scatter(nodes[i][0], nodes[i][1], s=100, color="blue")
+        ax.scatter(nodes[i][0], nodes[i][1], s=100, color="black")
         ax.text(nodes[i][0], nodes[i][1] + 0.03, str(i), fontsize=10, ha="center")
 
     # draw tour solution
@@ -40,12 +42,13 @@ def draw_tour_graph(ax, nodes, tour, color="red"):
             color=color,
             linewidth=2
         )
-    ax.plot(
+    line, = ax.plot(
         [nodes[int(tour[-1])][0], nodes[int(tour[0])][0]],
         [nodes[int(tour[-1])][1], nodes[int(tour[0])][1]],
         color=color,
         linewidth=2
     )
+    return line
 
 
 def draw_probs_graph(ax, graph, probabilities):
@@ -88,27 +91,60 @@ def draw_probs_graph(ax, graph, probabilities):
     return fig, ax
 
 
-def sample_draw_probs_graph(batch, preds):
-    """
-    The sample_draw_probs_graph function takes a batch of data and the predictions for that batch,
-    and plots the probabilities of each class for one randomly selected sample from that batch.
-    The function returns a tuple containing the figure and axis objects used to plot this graph.
+def draw_probability_graph(graph, predicted_tour, probability):
+    fig, ax = plt.subplots()
+    plt.suptitle("Prediction of the TSP solution using Graph-to-Sequence")
 
-    :param batch: Get the image and label from the batch
-    :param preds: Plot the predictions on top of the actual values
-    :return: A figure and an axis object
-    """
-    selected = random.randrange(len(batch))
-    return draw_probs_graph(batch[selected], preds[selected])
+    # sample random node
+    sampled = random.randint(0, len(graph)-1)
+
+    # draw nodes
+    for i in range(len(graph)):
+        color = "red" if sampled == i else "black"
+        ax.scatter(graph[i][0], graph[i][1], s=100, color=color)
+        ax.text(graph[i][0], graph[i][1] + 0.03, str(i), fontsize=10, ha="center")
+
+    # plot partial tour until random node i
+    idx = 0
+    while predicted_tour[idx] != sampled:
+        ax.plot(
+            [graph[int(predicted_tour[idx])][0], graph[int(predicted_tour[idx+1])][0]],
+            [graph[int(predicted_tour[idx])][1], graph[int(predicted_tour[idx+1])][1]],
+            color="black",
+            linewidth=2
+        )
+        idx += 1
+    
+    # plot edge probability over nodes
+    for j in range(idx+1, len(graph)):
+        weight = probability[idx, sampled, j]
+        norm = Normalize(vmin=0, vmax=1)
+        ax.plot(
+            [graph[sampled][0], graph[j][0]],
+            [graph[sampled][1], graph[j][1]],
+            linewidth=1,
+            alpha=1,
+            color=plt.cm.Blues(norm(weight))
+        )
+    return fig
 
 
 def draw_solution_graph(graph, true_tour, predicted_tour):
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10))
+    #fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 5))
 
-    ax1.set_title("Predicted Tour")
-    ax2.set_title("Optimal Tour")
+    #ax1.set_title("Predicted Tour")
+    #ax2.set_title("Optimal Tour")
+    
+    fig, ax = plt.subplots()
+    plt.suptitle("Prediction of the TSP solution using Graph-to-Sequence")
+    line_1 = draw_tour_graph(ax, graph, predicted_tour, color="royalblue")
+    line_2 = draw_tour_graph(ax, graph, true_tour, color="red")
 
-    draw_tour_graph(ax1, graph, predicted_tour, color="blue")
-    draw_tour_graph(ax2, graph, true_tour, color="red")
+    # Optimality gap
+    gap = compute_optimality_gap(graph, predicted_tour, true_tour)
+    plt.title(f"Optimality Gap: {gap:.2f}%")
+
+    # Add a legend
+    ax.legend([line_1, line_2],["Prediction", "Target"])
 
     return fig

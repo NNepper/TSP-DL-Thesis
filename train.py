@@ -27,7 +27,7 @@ parser.add_argument('--batch_size', type=int, default=512, help='input batch siz
 parser.add_argument('--num_nodes', type=int, default=20, help='number fo nodes in the graphs (default: 20)')
 parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
 parser.add_argument('--emb_dim', type=int, default=512, help='Size of the embedding vector (default: 128)')
-parser.add_argument('--enc_hid_dim', type=int, default=2048, help='number of unit per dense layer in the Node-Wise Feed-Forward Network (default: 2048))')
+parser.add_argument('--enc_hid_dim', type=int, default=4096, help='number of unit per dense layer in the Node-Wise Feed-Forward Network (default: 2048))')
 parser.add_argument('--enc_num_layers', type=int, default=6, help='number of layer')
 parser.add_argument('--enc_num_heads', type=int, default=8, help='number of Attention heads on Encoder')
 parser.add_argument('--dec_num_heads', type=int, default=8, help='number of Attention heads on Decoder')
@@ -36,17 +36,18 @@ parser.add_argument('--lr', type=float, default=0.0001, help='Learning multiplie
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use (default: 2)')
 parser.add_argument('--loss', type=str, default='full', help='loss function to use (default: negative_sampling)')
-parser.add_argument('--teacher_forcing_constant', type=float, default=2.0, help='teacher forcing constant, larger increase teacher forcing in the schedule (default: 0.0, no teacher forcing)')
+parser.add_argument('--teacher_forcing_constant', type=float, default=5.0, help='teacher forcing constant, larger increase teacher forcing in the schedule (default: 0.0, no teacher forcing)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-parser.add_argument('--checkpoint', type=str, default=None, help='Path to a checkpoint to load weights from (default: None)')
+parser.add_argument('--checkpoint', type=str, default="checkpoint.pt", help='Path to a checkpoint to load weights from (default: None)')
 parser.add_argument('--log', type=bool, default=True, help='Log the training (default: False)')
 parser.add_argument('--norm_layer', type=str, default='batch', help='Normalization layer to use (Batch, Layer)')
+parser.add_argument('--aggregation', type=str, default='sum', help='Aggregation function to use (max, sum)')
 config = parser.parse_args()
  
 # Check if GPU is available
 if torch.cuda.is_available():
     device = torch.device("cuda")
-    print(f"Using {torch.cuda.get_device_name()} for training.")
+    print(f"Using {torch.cuda.device_count()} {torch.cuda.get_device_name()} for training.")
 else:
     device = torch.device("cpu")
     print("No GPU available, using CPU for training.")
@@ -74,7 +75,8 @@ if __name__ == '__main__':
         enc_num_head=config.enc_num_heads,
         graph_size=config.num_nodes,
         drop_rate=config.drop_rate,
-        normalization=config.norm_layer
+        normalization=config.norm_layer,
+        aggregation=config.aggregation,
     ).to(device)
 
     # Data importing
@@ -83,17 +85,15 @@ if __name__ == '__main__':
     test_dataset = TSPDataset(config.data_test, config.num_nodes)
     test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False, pin_memory=True, num_workers=0)
 
-    # Multi-GPU sup'port
-    if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model)  # Wrap the model with DataParallel
-        print(f"Using {torch.cuda.device_count()} GPUs !")
+    # Multi-GPU suppport
+    model = nn.DataParallel(model)  # Wrap the model with DataParallel
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
     # Load checkpoint if specified
     if config.checkpoint != None and os.path.exists(config.checkpoint):
-        checkpoint = torch.load(config.checkpoint)
+        checkpoint = torch.load(config.checkpoint, map_location=device)
         epoch = checkpoint['epoch'] + 1
         model.load_state_dict(checkpoint['model'])
         print(f"Resuming training from epoch {epoch}...")
