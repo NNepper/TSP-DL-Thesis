@@ -36,7 +36,7 @@ parser.add_argument('--lr', type=float, default=0.0001, help='Learning multiplie
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use (default: 2)')
 parser.add_argument('--loss', type=str, default='full', help='loss function to use (default: negative_sampling)')
-parser.add_argument('--teacher_forcing_constant', type=float, default=5.0, help='teacher forcing constant, larger increase teacher forcing in the schedule (default: 0.0, no teacher forcing)')
+parser.add_argument('--teacher_forcing_constant', type=float, default=None, help='teacher forcing constant, larger increase teacher forcing in the schedule (default: 0.0, no teacher forcing)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
 parser.add_argument('--checkpoint', type=str, default="checkpoint.pt", help='Path to a checkpoint to load weights from (default: None)')
 parser.add_argument('--log', type=bool, default=True, help='Log the training (default: False)')
