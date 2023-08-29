@@ -26,7 +26,7 @@ parser.add_argument('--dec_num_heads', type=int, default=8, help='number of Atte
 parser.add_argument('--drop_rate', type=float, default=.1, help='Dropout rate (default: .1)')
 parser.add_argument('--directory', type=str, default="./results", help='path where model and plots will be saved')
 parser.add_argument('--n_gpu', type=int, default=0, help='number of GPUs to use (default: 2)')
-parser.add_argument('--loss', type=str, default='full', help='loss function to use (default: negative_sampling)')
+parser.add_argument('--loss', type=str, default='negative_sampling', help='loss function to use (default: negative_sampling)')
 parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
 parser.add_argument('--checkpoint', type=str, default="checkpoint.pt", help='Path to a checkpoint to load weights from (default: None)')
 parser.add_argument('--log', type=bool, default=True, help='Log the training (default: False)')
