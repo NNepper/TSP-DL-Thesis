@@ -5,6 +5,13 @@ import torch.nn as nn
 
 
 def cross_entropy(predictions, solutions):
+    """
+    The cross_entropy function computes the cross entropy loss for a batch of tours.
+
+    :param prediction: The probability of each edge in the predicted tour
+    :param solutions: The optimal tour for each graph in the batch
+    :return: The loss of each tour in the batch
+    """
     loss = torch.zeros(predictions.shape[0]).float().to(predictions.device, non_blocking=True)
     # Compute the true edges term
     for i, tour in enumerate(solutions):
@@ -30,24 +37,31 @@ def cross_entropy_negative_sampling(predictions, solutions, n_neg=5):
     for i, tour in enumerate(solutions):
         # Forward tour
         for j, u in enumerate(tour):
-            v = tour[(j + 1) % len(tour)]
-            loss[i] -= torch.log(torch.clamp(predictions[i, u, v], min=1e-6))
+            loss[i] -= torch.log(torch.clamp(predictions[i, j, u], min=1e-6))
 
     # Compute the false edges term (neg_sampling)
     for i, tour in enumerate(solutions):
         for j, u in enumerate(tour):
             for v in random.sample(range(0, len(tour)), n_neg):
-                if v != tour[(j + 1) % len(tour)]:
-                    loss[i] -= torch.log(1 - torch.clamp(predictions[i, u, v], min=1e-6, max=1 - 1e-6))
+                if v != tour[j]:
+                    loss[i] -= torch.log(1 - torch.clamp(predictions[i, j, v], min=1e-6, max=1 - 1e-6))
     return loss
 
 def cross_entropy_full(probabilities, solutions):
+    """
+    The cross_entropy_full function computes the cross entropy loss for a batch of tour
+    over the entire probability distribution.
+
+    :param prediction: The probability of each edge in the predicted tour
+    :param solutions: The optimal tour for each graph in the batch
+    :return: The loss of each tour in the batch
+    """
     batch_size, num_nodes = solutions.size()
     target = torch.zeros(batch_size, num_nodes, num_nodes).float()
     
     for i in range(batch_size):
         for j in range(num_nodes):
-            target[i,j,solutions[i,(j+1)%num_nodes]] = 1
+            target[i,j,solutions[i,j]] = 1
 
     # Ravel the target and log_probabilities tensors
     target = target.view(batch_size, num_nodes * num_nodes).to(probabilities.device, non_blocking=True)

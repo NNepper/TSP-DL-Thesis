@@ -1,6 +1,7 @@
 from collections import deque
 
 import torch
+from scipy.spatial.distance import euclidean
 
 from data.dataset import TSPDataset
 from torch.utils.data import DataLoader
@@ -43,12 +44,16 @@ def discounted_rewards(rewards, gamma):
     return G
 
 
-def compute_optimality_gap(batch_graph, batch_pred_tour):
-    length = torch.zeros(batch_graph.num_graphs)
-    for i in range(batch_graph.num_graphs):
-        nx_graph = to_networkx(batch_graph[i], edge_attrs=["edge_attr"])
-        for j in range(batch_pred_tour.shape[1]):
-            u = int(batch_pred_tour[i,j])
-            v = int(batch_pred_tour[i, (j+1) % batch_pred_tour.shape[1]])
-            length += nx_graph[u][v]["edge_attr"]
-    return length
+def compute_optimality_gap(graph, prediction, target):
+    true_length = pred_length = 0
+    for i in range(len(graph)):
+        # Prediction
+        pred_length += euclidean(
+            graph[int(prediction[i])],
+            graph[int(prediction[(i+1)%len(graph)])])
+
+        # Target
+        true_length += euclidean(
+            graph[int(target[i])],
+            graph[int(target[(i+1)%len(graph)])])
+    return 100 * (pred_length - true_length) / true_length

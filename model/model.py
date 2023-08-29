@@ -19,6 +19,7 @@ class Graph2Seq(nn.Module):
                  dec_num_heads: int,
                  drop_rate: int = 0.1,
                  normalization: str = "batch",
+                 aggregation: str = "sum"
                  ):
         super().__init__()
 
@@ -35,7 +36,8 @@ class Graph2Seq(nn.Module):
                                   num_layers=self.enc_num_layers, 
                                   num_heads=self.enc_num_heads, 
                                   drop_rate=drop_rate, 
-                                  normalization=normalization)
+                                  normalization=normalization,
+                                  aggregation=aggregation)
         self.decoder = MHADecoder(embedding_dim=dec_emb_dim, 
                                   num_heads=dec_num_heads)
 
